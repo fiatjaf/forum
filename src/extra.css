@@ -127,6 +127,69 @@
 	align-items: center;
 }
 
+/* The settings page puts ForumFields' panels inside one card. The panels keep
+   the form sections separate without drawing a border inside the card. */
+.account-page .card-b .panel.account-section {
+	margin: 0;
+	padding: 0;
+	border: 0;
+	border-radius: 0;
+	background: none;
+}
+
+/* Add-member and similar forms stay on one line inside a card body. */
+.account-page .card-b > form.row-inline {
+	flex-direction: row;
+	align-items: center;
+	gap: 8px;
+}
+
+.account-page .card-b > form.row-inline .inp {
+	flex: 1;
+	min-width: 0;
+	max-width: none;
+}
+
+/* The settings form's fields use the card width, like the old admin form. */
+.account-page .card-b .account-form .inp {
+	max-width: none;
+}
+
+/* A little more room than soliloquy's 168px so "programmatic access" fits on
+   one line. */
+@media (min-width: 761px) {
+	.account-page .layout {
+		grid-template-columns: 184px minmax(0, 1fr);
+	}
+}
+
+/* Programmatic access examples. */
+.programmatic-block {
+	display: flex;
+	flex-direction: column;
+	gap: 6px;
+}
+
+.programmatic-block h3 {
+	margin: 0;
+	font: 600 13px var(--font-mono);
+}
+
+.help code {
+	padding: 1px 4px;
+	border-radius: 3px;
+	background: var(--panel);
+	font: 12px var(--font-mono);
+}
+
+.account-layout {
+	margin: 20px 0 28px;
+}
+
+.account-layout .account-stack {
+	margin: 0;
+}
+
 .top .me {
 	overflow: hidden;
 	max-width: 18ch;

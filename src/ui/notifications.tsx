@@ -3,7 +3,8 @@ import { For, createEffect, createMemo, createSignal, on } from "solid-js"
 import { allGroups, type Group } from "../groups"
 import { me } from "../nostr"
 import { useChanges } from "../state"
-import { ago, displayName, snippet, titleOf } from "./common"
+import { ago, displayName, navigate, snippet, titleOf } from "./common"
+import { desktopAlertsActive } from "./preferences"
 
 type Note = { g: Group; evt: NostrEvent; kind: "reply" | "comment" | "mention"; root?: NostrEvent }
 
@@ -35,6 +36,63 @@ function seenUntil(): number {
 export function unreadNotifications(): number {
   const seen = seenUntil()
   return collect().filter(n => n.evt.created_at > seen).length
+}
+
+// Desktop alerts for notifications that arrive while the tab is in the
+// background. The watcher lives for the whole app, not just the notifications
+// page, and only announces events that are new since the tab opened.
+export function watchDesktopAlerts() {
+  const known = new Set<string>()
+  const startedAt = Math.floor(Date.now() / 1000)
+  let primed = false
+
+  createEffect(() => {
+    useChanges()
+    const notes = collect()
+    const fresh = notes.filter(n => !known.has(n.evt.id))
+    for (const n of notes) known.add(n.evt.id)
+
+    if (!primed) {
+      primed = true
+      return
+    }
+    if (!fresh.length || !document.hidden || !desktopAlertsActive()) return
+
+    const live = fresh.filter(n => n.evt.created_at >= startedAt)
+    if (!live.length) return
+    showDesktopAlert(live)
+  })
+}
+
+function showDesktopAlert(notes: Note[]) {
+  const newest = notes[0]
+  const who = displayName(newest.evt.pubkey, [newest.g.relay])
+  const thread = newest.root ? titleOf(newest.root) : "a thread"
+  const action =
+    newest.kind === "mention"
+      ? `mentioned you in “${thread}”`
+      : newest.kind === "reply"
+        ? `replied to you in “${thread}”`
+        : `commented on your thread “${thread}”`
+  const title = notes.length === 1 ? action : `${notes.length} new notifications`
+  const body = notes.length === 1 ? `${who}: ${snippet(newest.evt.content, 140)}` : `${who} and ${notes.length - 1} more`
+
+  try {
+    const alert = new Notification(title, { body, tag: "forum-notification" })
+    alert.onclick = () => {
+      window.focus()
+      navigate(noteURL(newest))
+      alert.close()
+    }
+  } catch {
+    // Notifications can be unavailable even when permission is granted.
+  }
+}
+
+function noteURL(n: Note): string {
+  const rootId = n.root?.id ?? n.evt.tags.find(t => t[0] === "E")?.[1]
+  if (!rootId || !n.g.naddr) return "/notifications"
+  return `/${n.g.naddr}/${rootId}#c${n.evt.id}`
 }
 
 export function Notifications() {

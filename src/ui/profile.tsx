@@ -18,6 +18,7 @@ import {
 import { linkGoogle } from "../pomegranate"
 import { useChanges } from "../state"
 import { ago, displayName, forgetUser, getUser, plural, snippet, titleOf } from "./common"
+import { AppearanceCard, DesktopAlertsCard, Sidebar } from "./preferences"
 
 function decodePubkey(code: string): string | null {
   try {
@@ -154,11 +155,24 @@ export function Profile(props: { code: string }) {
 
 function Account() {
   return (
-    <div class="stack account-stack">
-      <NameCard />
-      <AppearanceCard />
-      <GoogleCard />
-      <KeysCard />
+    <div class="layout account-layout">
+      <Sidebar
+        label="Account sections"
+        items={[
+          { id: "name", label: "name" },
+          { id: "appearance", label: "appearance" },
+          { id: "notifications", label: "notifications" },
+          { id: "google", label: "google account" },
+          { id: "keys", label: "keys" }
+        ]}
+      />
+      <div class="stack account-stack">
+        <NameCard />
+        <AppearanceCard />
+        <DesktopAlertsCard />
+        <GoogleCard />
+        <KeysCard />
+      </div>
     </div>
   )
 }
@@ -169,7 +183,7 @@ function NameCard() {
   const [msg, setMsg] = createSignal("")
   const pending = pendingName()
   return (
-    <section class="card" aria-labelledby="name-heading">
+    <section id="name" class="card" aria-labelledby="name-heading">
       <div class="card-h">
         <h2 id="name-heading">name</h2>
         <p>
@@ -211,37 +225,6 @@ function NameCard() {
   )
 }
 
-function AppearanceCard() {
-  const [theme, setTheme] = createSignal(localStorage.getItem("theme") || "auto")
-  const pick = (t: string) => {
-    setTheme(t)
-    document.documentElement.className = "sq " + t
-    try {
-      localStorage.setItem("theme", t)
-    } catch {}
-  }
-  return (
-    <section class="card" aria-labelledby="appearance-heading">
-      <div class="card-h">
-        <h2 id="appearance-heading">appearance</h2>
-        <p>Saved in this browser.</p>
-      </div>
-      <div class="card-b">
-        <fieldset class="seg" aria-label="Theme">
-          <For each={["auto", "light", "dark"] as const}>
-            {t => (
-              <label>
-                <input type="radio" name="theme" value={t} checked={theme() === t} onChange={() => pick(t)} />
-                <span>{t === "auto" ? "system" : t}</span>
-              </label>
-            )}
-          </For>
-        </fieldset>
-      </div>
-    </section>
-  )
-}
-
 function GoogleCard() {
   const [link, setLink] = createSignal(pomegranateLink())
   const [log, setLog] = createSignal<string[]>([])
@@ -266,7 +249,7 @@ function GoogleCard() {
   }
 
   return (
-    <section class="card" aria-labelledby="google-heading">
+    <section id="google" class="card" aria-labelledby="google-heading">
       <div class="card-h">
         <h2 id="google-heading">google account</h2>
         <p>
@@ -313,7 +296,7 @@ function KeysCard() {
   const secret = nsec()
 
   return (
-    <section class="card" aria-labelledby="keys-heading">
+    <section id="keys" class="card" aria-labelledby="keys-heading">
       <div class="card-h">
         <h2 id="keys-heading">keys</h2>
         <p>
