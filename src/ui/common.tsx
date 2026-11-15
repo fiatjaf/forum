@@ -1,8 +1,8 @@
 import { loadNostrUser, type NostrUser, bareNostrUser } from "@nostr/gadgets/metadata"
 import type { NostrEvent } from "@nostr/tools/core"
 import * as nip19 from "@nostr/tools/nip19"
+import { type Block, parse } from "@nostr/tools/nip27"
 import DOMPurify from "dompurify"
-import { marked } from "marked"
 import * as djot from "@djot/djot"
 import type { ComponentChildren } from "preact"
 import { useEffect, useRef, useState } from "preact/hooks"
@@ -113,9 +113,122 @@ export function snippet(text: string, max = 200): string {
   return flat.length > max ? flat.slice(0, max - 1) + "…" : flat
 }
 
-// ─── markdown ──────────────────────────────────────────────────
+// ─── note content ──────────────────────────────────────────────
+// Comments are plain text, cut into links, references, media and hashtags by
+// NIP-27. Thread bodies are djot and go through renderMentions below.
 
-marked.use({ gfm: true, breaks: true })
+const mediaBlock = (block?: Block) =>
+  block?.type === "image" || block?.type === "video" || block?.type === "audio"
+
+export function NoteContent({
+  event,
+  group,
+  class: cls
+}: {
+  event: Pick<NostrEvent, "content" | "tags">
+  group?: Group
+  class?: string
+}) {
+  const blocks = [...parse(event as NostrEvent)]
+
+  return (
+    <div class={"nc" + (cls ? " " + cls : "")}>
+      {blocks.map((block, i) => {
+        switch (block.type) {
+          case "text": {
+            let text = block.text
+            if (mediaBlock(blocks[i - 1]) && text.startsWith("\n")) text = text.slice(1)
+            if (mediaBlock(blocks[i + 1]) && text.endsWith("\n")) text = text.slice(0, -1)
+            return text ? <span key={i}>{text}</span> : null
+          }
+          case "url":
+            return (
+              <a key={i} href={block.url} target="_blank" rel="nofollow noopener">
+                {block.url}
+              </a>
+            )
+          case "relay":
+            return (
+              <span key={i} class="relay" title={block.url}>
+                {block.url}
+              </span>
+            )
+          case "image":
+            return <img key={i} class="note-image" src={block.url} loading="lazy" alt="" />
+          case "video":
+            return <video key={i} class="note-video" src={block.url} controls preload="metadata" />
+          case "audio":
+            return <audio key={i} class="note-audio" src={block.url} controls preload="metadata" />
+          case "reference":
+            return <NoteReference key={i} pointer={block.pointer} group={group} />
+          case "hashtag":
+            return (
+              <span key={i} class="hashtag">
+                #{block.value}
+              </span>
+            )
+          case "emoji":
+            return <img key={i} class="emoji" src={block.url} alt={`:${block.shortcode}:`} title={`:${block.shortcode}:`} loading="lazy" />
+          default:
+            return null
+        }
+      })}
+    </div>
+  )
+}
+
+function NoteReference({
+  pointer,
+  group
+}: {
+  pointer: Extract<Block, { type: "reference" }>["pointer"]
+  group?: Group
+}) {
+  if ("identifier" in pointer) {
+    const code = nip19.naddrEncode(pointer)
+    return (
+      <a class="ref" href={"/" + code} title={code}>
+        %{pointer.kind}:{pointer.identifier.slice(0, 8)}
+      </a>
+    )
+  }
+
+  if ("id" in pointer) {
+    // A reference to a thread or comment we already have opens in its forum
+    // directly; anything else goes through the nevent resolver.
+    if (group) {
+      const thread = group.threads.get(pointer.id)
+      if (thread) {
+        return (
+          <a class="ref" href={`/${group.naddr}/${thread.id}`} title={pointer.id}>
+            %{pointer.id.slice(0, 8)}
+          </a>
+        )
+      }
+      const comment = group.comments.get(pointer.id)
+      const root = comment?.tags.find(t => t[0] === "E")?.[1]
+      if (comment && root) {
+        return (
+          <a class="ref" href={`/${group.naddr}/${root}#c${comment.id}`} title={pointer.id}>
+            %{pointer.id.slice(0, 8)}
+          </a>
+        )
+      }
+    }
+    const code = nip19.neventEncode(pointer)
+    return (
+      <a class="ref" href={"/" + code} title={pointer.id}>
+        %{pointer.id.slice(0, 8)}
+      </a>
+    )
+  }
+
+  return (
+    <a class="mention" href={`/${npub(pointer.pubkey)}`}>
+      @{displayName(pointer.pubkey, pointer.relays)}
+    </a>
+  )
+}
 
 function renderMentions(text: string): string {
   return text.replace(/(?:nostr:)?((?:npub1|nprofile1)[a-z0-9]{50,})/g, (whole: string, code: string) => {
@@ -130,12 +243,7 @@ function renderMentions(text: string): string {
   })
 }
 
-export function Markdown({ text, class: cls }: { text: string; class?: string }) {
-  const html = DOMPurify.sanitize(marked.parse(renderMentions(text), { async: false }) as string)
-  return <div class={cls} dangerouslySetInnerHTML={{ __html: html }} />
-}
-
-// Thread bodies are djot; comments stay markdown.
+// Thread bodies are djot.
 export function Djot({ text, class: cls }: { text: string; class?: string }) {
   let html: string
   try {
@@ -162,7 +270,7 @@ export function Editor(props: {
   id?: string
   label: string
   bar?: ComponentChildren
-  format?: "markdown" | "djot"
+  format?: "nip27" | "djot"
 }) {
   const [tab, setTab] = useState<"write" | "preview">("write")
   const ref = useRef<HTMLTextAreaElement>(null)
@@ -198,7 +306,17 @@ export function Editor(props: {
         }}
       />
       {tab === "preview" && (
-        <div class="preview md">{props.value.trim() ? props.format === "djot" ? <Djot text={props.value} /> : <Markdown text={props.value} /> : <p class="muted">Nothing to preview.</p>}</div>
+        <div class={"preview" + (props.format === "djot" ? " prose" : "")}>
+          {props.value.trim() ? (
+            props.format === "djot" ? (
+              <Djot text={props.value} />
+            ) : (
+              <NoteContent event={{ content: props.value, tags: [] }} />
+            )
+          ) : (
+            <p class="muted">Nothing to preview.</p>
+          )}
+        </div>
       )}
       {props.bar && <div class="edbar">{props.bar}</div>}
     </div>

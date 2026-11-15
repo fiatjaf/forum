@@ -2,7 +2,7 @@ import type { NostrEvent } from "@nostr/tools/core"
 import { useEffect, useRef, useState } from "preact/hooks"
 import type { Group } from "../groups"
 import { me } from "../nostr"
-import { Counter, Djot, Editor, Markdown, UserLink, VoteButton, ago, displayName, lastRead, markRead, navigate, plural, linkOf, titleOf } from "./common"
+import { Counter, Djot, Editor, NoteContent, UserLink, VoteButton, ago, displayName, lastRead, markRead, navigate, plural, linkOf, titleOf } from "./common"
 import { Membership } from "./forum"
 
 const parentOf = (c: NostrEvent) => c.tags.findLast(t => t[0] === "e")?.[1]
@@ -118,7 +118,7 @@ export function ThreadPage({ group: g, id }: { group: Group; id: string }) {
               </>
             )}
           </div>
-          {!deleted && !link && thread.content.trim() && <Djot class="md thread-body" text={thread.content} />}
+          {!deleted && !link && thread.content.trim() && <Djot class="prose thread-body" text={thread.content} />}
         </div>
       </article>
 
@@ -203,7 +203,7 @@ function Comment({ c, ctx }: { c: NostrEvent; ctx: Ctx }) {
           {collapsed ? "[+]" : "[-]"}
         </button>
       </div>
-      <div class={"cb md" + (deleted ? " gone" : "")}>{deleted ? <p>[deleted]</p> : <Markdown text={c.content} />}</div>
+      <div class={"cb" + (deleted ? " gone" : "")}>{deleted ? <p>[deleted]</p> : <NoteContent event={c} group={g} />}</div>
       {!deleted && (
         <div class="ca">
           <a
@@ -291,10 +291,10 @@ function CommentForm({ g, thread, parent, onDone }: { g: Group; thread: NostrEve
         required
         autofocus={isReply}
         label={isReply ? "Reply" : "Comment"}
-        placeholder={isReply ? `Reply to ${author}` : "Add a comment. Markdown works."}
+        placeholder={isReply ? `Reply to ${author}` : "Add a comment."}
         bar={
           <>
-            <span>{isReply ? `replying to ${author}` : "markdown"}</span>
+            <span>{isReply ? `replying to ${author}` : "nip27"}</span>
             <span class="sp"></span>
             <Counter value={body} />
             <button class="btn pri" type="submit" disabled={busy}>

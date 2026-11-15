@@ -3,6 +3,7 @@ import { pool } from "@nostr/gadgets/global"
 import type { EventTemplate, NostrEvent } from "@nostr/tools/core"
 import { fetchRelayInformation } from "@nostr/tools/nip11"
 import * as nip19 from "@nostr/tools/nip19"
+import { parse } from "@nostr/tools/nip27"
 import { normalizeURL } from "@nostr/tools/utils"
 import { anySuccess, authRelays, me, myWriteRelays, now, onauth, publishToRelay, sign } from "./nostr"
 import { onSaved, query, save } from "./store"
@@ -285,12 +286,10 @@ export class Group {
       ["k", String(parent.kind)],
       ["p", parent.pubkey, this.relay]
     ]
-    for (const m of body.matchAll(/nostr:(npub1[a-z0-9]+|nprofile1[a-z0-9]+)/g)) {
-      try {
-        const d = nip19.decode(m[1])
-        const pk = d.type === "npub" ? d.data : d.type === "nprofile" ? d.data.pubkey : null
-        if (pk && !tags.some(t => t[0] === "p" && t[1] === pk)) tags.push(["p", pk])
-      } catch {}
+    for (const block of parse(body)) {
+      if (block.type !== "reference" || !("pubkey" in block.pointer)) continue
+      const pk = block.pointer.pubkey
+      if (!tags.some(t => t[0] === "p" && t[1] === pk)) tags.push(["p", pk])
     }
     return this.publish({ kind: KIND_COMMENT, content: body, tags })
   }

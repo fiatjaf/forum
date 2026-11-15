@@ -657,22 +657,22 @@ a.btn.pri:hover {
 	white-space: nowrap;
 }
 
-/* Rendered Markdown ------------------------------------------------- */
+/* Rendered djot thread bodies --------------------------------------- */
 
-.md {
+.prose {
 	font-size: 14.5px;
 	line-height: 1.55;
 }
 
-.md p {
+.prose p {
 	margin: 0 0 8px;
 }
 
-.md p:last-child {
+.prose p:last-child {
 	margin-bottom: 0;
 }
 
-.md code {
+.prose code {
 	padding: 1px 4px;
 	border: 1px solid var(--line2);
 	border-radius: 3px;
@@ -680,7 +680,7 @@ a.btn.pri:hover {
 	font: 12.5px var(--font-mono);
 }
 
-.md pre {
+.prose pre {
 	margin: 4px 0 8px;
 	padding: 9px 12px;
 	border: 1px solid var(--line);
@@ -691,19 +691,19 @@ a.btn.pri:hover {
 	white-space: pre;
 }
 
-.md pre code {
+.prose pre code {
 	padding: 0;
 	border: 0;
 	background: none;
 }
 
-.md a {
+.prose a {
 	color: var(--accent);
 	text-decoration: underline;
 	text-underline-offset: 2px;
 }
 
-.md blockquote {
+.prose blockquote {
 	margin: 0 0 8px;
 	padding-left: 10px;
 	border-left: 2px solid var(--line);
@@ -712,7 +712,7 @@ a.btn.pri:hover {
 
 /* A table is its own scroll container, so a wide table scrolls sideways
  * instead of widening the thread on a narrow screen. */
-.md table {
+.prose table {
 	display: block;
 	max-width: 100%;
 	margin: 4px 0 8px;
@@ -722,14 +722,14 @@ a.btn.pri:hover {
 	line-height: 1.45;
 }
 
-.md th,
-.md td {
+.prose th,
+.prose td {
 	padding: 5px 9px;
 	border: 1px solid var(--line);
 	vertical-align: top;
 }
 
-.md th {
+.prose th {
 	background: var(--panel);
 	font-weight: 500;
 	text-align: left;
@@ -737,29 +737,89 @@ a.btn.pri:hover {
 
 /* The renderer writes GFM column alignment as an align attribute, which would
  * lose to the text-align above. */
-.md th[align="center"] {
+.prose th[align="center"] {
 	text-align: center;
 }
 
-.md th[align="right"] {
+.prose th[align="right"] {
 	text-align: right;
 }
 
-.md del {
+.prose del {
 	color: var(--muted);
 }
 
 /* Task list items drop the bullet and pull the checkbox into its place. In a
  * loose list, goldmark puts the checkbox inside the item's first paragraph. */
-.md li:has(> input[type="checkbox"]),
-.md li:has(> p:first-child > input[type="checkbox"]:first-child) {
+.prose li:has(> input[type="checkbox"]),
+.prose li:has(> p:first-child > input[type="checkbox"]:first-child) {
 	list-style: none;
 }
 
-.md li > input[type="checkbox"],
-.md li > p:first-child > input[type="checkbox"]:first-child {
+.prose li > input[type="checkbox"],
+.prose li > p:first-child > input[type="checkbox"]:first-child {
 	margin: 0 0.4em 0 -1.4em;
 	vertical-align: middle;
+}
+
+/* Comment bodies: one NIP-27 text run, with media as blocks --------- */
+
+.nc {
+	font-size: 14.5px;
+	line-height: 1.55;
+	white-space: pre-wrap;
+	overflow-wrap: anywhere;
+}
+
+.nc a {
+	color: var(--accent);
+	text-decoration: underline;
+	text-underline-offset: 2px;
+}
+
+.nc .ref {
+	font-family: var(--font-mono);
+	font-size: 0.9em;
+}
+
+.nc .relay {
+	color: var(--muted);
+	font-family: var(--font-mono);
+	font-size: 0.9em;
+}
+
+.nc .hashtag {
+	color: var(--accent);
+}
+
+.nc .note-image {
+	display: block;
+	max-width: 100%;
+	max-height: 480px;
+	margin: 8px 0;
+	border: 1px solid var(--line);
+	border-radius: 4px;
+}
+
+.nc .note-video {
+	display: block;
+	max-width: min(100%, 560px);
+	max-height: 480px;
+	margin: 8px 0;
+	border: 1px solid var(--line);
+	background: var(--panel);
+}
+
+.nc .note-audio {
+	display: block;
+	width: min(100%, 420px);
+	margin: 8px 0;
+}
+
+.nc .emoji {
+	height: 1.4em;
+	max-width: 1.4em;
+	vertical-align: -0.3em;
 }
 
 .ment,
