@@ -68,7 +68,9 @@ export function Forum(props: { group: Group }) {
       ) : syncing() ? (
         <p class="hint">Loading threads from {g.relay}…</p>
       ) : !metadata() && !member() ? (
-        <p class="hint">Nothing to show. This forum is probably private: join it, or open an invite link, to read it.</p>
+        <p class="hint">
+          Nothing to show. This forum is probably private: join it, or open an invite link, to read it.
+        </p>
       ) : syncError() && !g.threads.size ? (
         <p class="err" role="alert">
           {syncError()}
@@ -213,7 +215,11 @@ export function Membership(props: { group: Group }) {
             </span>
             <span class="sp"></span>
             {(!meta()?.isClosed || invite) && (
-              <button class="btn pri" disabled={busy()} onClick={() => run(() => g.join(invite).then(() => rejoined(g)))}>
+              <button
+                class="btn pri"
+                disabled={busy()}
+                onClick={() => run(() => g.join(invite).then(() => rejoined(g)))}
+              >
                 {busy() ? "joining…" : "join"}
               </button>
             )}

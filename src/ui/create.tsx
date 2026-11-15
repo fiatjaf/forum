@@ -21,13 +21,25 @@ export function ForumFields(props: { form: () => ForumForm; set: (f: Partial<For
         </h2>
         <div class="field">
           <label for="forum-name">name</label>
-          <input id="forum-name" class="inp" value={form().name} maxLength={80} required onInput={e => props.set({ name: (e.target as HTMLInputElement).value })} />
+          <input
+            id="forum-name"
+            class="inp"
+            value={form().name}
+            maxLength={80}
+            required
+            onInput={e => props.set({ name: (e.target as HTMLInputElement).value })}
+          />
         </div>
         <div class="field">
           <label for="forum-about">
             about <span>(optional)</span>
           </label>
-          <textarea id="forum-about" rows={3} value={form().about} onInput={e => props.set({ about: (e.target as HTMLTextAreaElement).value })} />
+          <textarea
+            id="forum-about"
+            rows={3}
+            value={form().about}
+            onInput={e => props.set({ about: (e.target as HTMLTextAreaElement).value })}
+          />
         </div>
         <div class="field">
           <label for="forum-picture">
@@ -50,16 +62,28 @@ export function ForumFields(props: { form: () => ForumForm; set: (f: Partial<For
         </h2>
         <fieldset class="seg" aria-label="Visibility">
           <label>
-            <input type="radio" name="visibility" checked={!form().isPrivate} onChange={() => props.set({ isPrivate: false })} />
+            <input
+              type="radio"
+              name="visibility"
+              checked={!form().isPrivate}
+              onChange={() => props.set({ isPrivate: false })}
+            />
             <span>public</span>
           </label>
           <label>
-            <input type="radio" name="visibility" checked={form().isPrivate} onChange={() => props.set({ isPrivate: true })} />
+            <input
+              type="radio"
+              name="visibility"
+              checked={form().isPrivate}
+              onChange={() => props.set({ isPrivate: true })}
+            />
             <span>private</span>
           </label>
         </fieldset>
         <p class="hint">
-          {form().isPrivate ? "Only members can read threads and comments." : "Anyone with the link can read threads and comments."}
+          {form().isPrivate
+            ? "Only members can read threads and comments."
+            : "Anyone with the link can read threads and comments."}
         </p>
       </section>
 
@@ -69,11 +93,21 @@ export function ForumFields(props: { form: () => ForumForm; set: (f: Partial<For
         </h2>
         <fieldset class="seg" aria-label="Membership">
           <label>
-            <input type="radio" name="membership" checked={!form().isClosed} onChange={() => props.set({ isClosed: false })} />
+            <input
+              type="radio"
+              name="membership"
+              checked={!form().isClosed}
+              onChange={() => props.set({ isClosed: false })}
+            />
             <span>open</span>
           </label>
           <label>
-            <input type="radio" name="membership" checked={form().isClosed} onChange={() => props.set({ isClosed: true })} />
+            <input
+              type="radio"
+              name="membership"
+              checked={form().isClosed}
+              onChange={() => props.set({ isClosed: true })}
+            />
             <span>closed</span>
           </label>
         </fieldset>
@@ -89,7 +123,13 @@ export function ForumFields(props: { form: () => ForumForm; set: (f: Partial<For
 
 export function CreateForum() {
   const [relay, setRelay] = createSignal("chat.wisp.talk")
-  const [form, setForm] = createSignal<ForumForm>({ name: "", about: "", picture: "", isPrivate: false, isClosed: false })
+  const [form, setForm] = createSignal<ForumForm>({
+    name: "",
+    about: "",
+    picture: "",
+    isPrivate: false,
+    isClosed: false
+  })
   const [error, setError] = createSignal("")
   const [busy, setBusy] = createSignal(false)
 
@@ -129,9 +169,18 @@ export function CreateForum() {
           </h2>
           <div class="field">
             <label for="forum-relay">NIP-29 relay</label>
-            <input id="forum-relay" class="inp mono" value={relay()} required spellcheck={false} onInput={e => setRelay((e.target as HTMLInputElement).value)} />
+            <input
+              id="forum-relay"
+              class="inp mono"
+              value={relay()}
+              required
+              spellcheck={false}
+              onInput={e => setRelay((e.target as HTMLInputElement).value)}
+            />
           </div>
-          <p class="hint">The relay hosts the forum and enforces who can read and write. It must support NIP-29 groups.</p>
+          <p class="hint">
+            The relay hosts the forum and enforces who can read and write. It must support NIP-29 groups.
+          </p>
         </section>
 
         <ForumFields form={form} set={f => setForm({ ...form(), ...f })} />

@@ -97,7 +97,8 @@ export const plural = (n: number, one: string, many = one + "s") => `${n} ${n ==
 
 // ─── events ────────────────────────────────────────────────────
 
-export const titleOf = (evt: NostrEvent) => evt.tags.find(t => t[0] === "title")?.[1] || evt.content.split("\n")[0].slice(0, 80) || "(untitled)"
+export const titleOf = (evt: NostrEvent) =>
+  evt.tags.find(t => t[0] === "title")?.[1] || evt.content.split("\n")[0].slice(0, 80) || "(untitled)"
 
 // A thread whose whole body is one link is a link thread: its title points
 // there and the domain shows next to it, like soliloquy's url threads.
@@ -120,14 +121,9 @@ export function snippet(text: string, max = 200): string {
 // Comments are plain text, cut into links, references, media and hashtags by
 // NIP-27. Thread bodies are djot and go through renderMentions below.
 
-const mediaBlock = (block?: Block) =>
-  block?.type === "image" || block?.type === "video" || block?.type === "audio"
+const mediaBlock = (block?: Block) => block?.type === "image" || block?.type === "video" || block?.type === "audio"
 
-export function NoteContent(props: {
-  event: Pick<NostrEvent, "content" | "tags">
-  group?: Group
-  class?: string
-}) {
+export function NoteContent(props: { event: Pick<NostrEvent, "content" | "tags">; group?: Group; class?: string }) {
   const blocks = [...parse(props.event as NostrEvent)]
 
   return (
@@ -161,13 +157,17 @@ export function NoteContent(props: {
           case "reference":
             return <NoteReference pointer={block.pointer} group={props.group} />
           case "hashtag":
-            return (
-              <span class="hashtag">
-                #{block.value}
-              </span>
-            )
+            return <span class="hashtag">#{block.value}</span>
           case "emoji":
-            return <img class="emoji" src={block.url} alt={`:${block.shortcode}:`} title={`:${block.shortcode}:`} loading="lazy" />
+            return (
+              <img
+                class="emoji"
+                src={block.url}
+                alt={`:${block.shortcode}:`}
+                title={`:${block.shortcode}:`}
+                loading="lazy"
+              />
+            )
           default:
             return null
         }
@@ -176,10 +176,7 @@ export function NoteContent(props: {
   )
 }
 
-function NoteReference(props: {
-  pointer: Extract<Block, { type: "reference" }>["pointer"]
-  group?: Group
-}) {
+function NoteReference(props: { pointer: Extract<Block, { type: "reference" }>["pointer"]; group?: Group }) {
   const pointer = props.pointer
   const group = props.group
 
@@ -275,10 +272,22 @@ export function Editor(props: {
   return (
     <div class="editor">
       <div class="tabs" role="tablist">
-        <button type="button" class={tab() === "write" ? "on" : ""} role="tab" aria-selected={tab() === "write"} onClick={() => setTab("write")}>
+        <button
+          type="button"
+          class={tab() === "write" ? "on" : ""}
+          role="tab"
+          aria-selected={tab() === "write"}
+          onClick={() => setTab("write")}
+        >
           write
         </button>
-        <button type="button" class={tab() === "preview" ? "on" : ""} role="tab" aria-selected={tab() === "preview"} onClick={() => setTab("preview")}>
+        <button
+          type="button"
+          class={tab() === "preview" ? "on" : ""}
+          role="tab"
+          aria-selected={tab() === "preview"}
+          onClick={() => setTab("preview")}
+        >
           preview
         </button>
       </div>
@@ -384,7 +393,10 @@ export function markRead(threadId: string, ts: number) {
   } catch {}
 }
 
-export function useAsync<T>(fn: () => Promise<T>, deps: () => unknown): {
+export function useAsync<T>(
+  fn: () => Promise<T>,
+  deps: () => unknown
+): {
   readonly value: T | undefined
   readonly error: string | undefined
   readonly loading: boolean

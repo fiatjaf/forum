@@ -39,7 +39,8 @@ export function relaySelf(relay: string): Promise<string> {
       ? Promise.resolve(stored)
       : fetchRelayInformation(relay).then(info => {
           const self = (info as any).self || info.pubkey
-          if (!self || !/^[0-9a-f]{64}$/.test(self)) throw new Error(`${relay} doesn't say what its key is (NIP-11 "self")`)
+          if (!self || !/^[0-9a-f]{64}$/.test(self))
+            throw new Error(`${relay} doesn't say what its key is (NIP-11 "self")`)
           try {
             localStorage.setItem("self:" + relay, self)
           } catch {}
@@ -205,7 +206,8 @@ export class Group {
       case 9000:
       case 9001:
         if (evt.tags.some(t => t[0] === "p" && t[1] === me)) {
-          if (!this.myMembershipEvent || this.myMembershipEvent.created_at <= evt.created_at) this.myMembershipEvent = evt
+          if (!this.myMembershipEvent || this.myMembershipEvent.created_at <= evt.created_at)
+            this.myMembershipEvent = evt
         }
         return
     }
@@ -313,7 +315,14 @@ export class Group {
 
   async deleteEvent(target: NostrEvent) {
     if (target.pubkey === me) {
-      await this.publish({ kind: KIND_DELETION, content: "", tags: [["e", target.id], ["k", String(target.kind)]] })
+      await this.publish({
+        kind: KIND_DELETION,
+        content: "",
+        tags: [
+          ["e", target.id],
+          ["k", String(target.kind)]
+        ]
+      })
     } else {
       await this.publish({ kind: 9005, content: "", tags: [["e", target.id]] })
     }
@@ -453,7 +462,10 @@ export async function createGroup(opts: {
 }): Promise<Group> {
   const relay = normalizeRelay(opts.relay)
   const relayPubkey = await relaySelf(relay)
-  const id = Array.from(crypto.getRandomValues(new Uint8Array(9)), b => "abcdefghijklmnopqrstuvwxyz0123456789"[b % 36]).join("")
+  const id = Array.from(
+    crypto.getRandomValues(new Uint8Array(9)),
+    b => "abcdefghijklmnopqrstuvwxyz0123456789"[b % 36]
+  ).join("")
   const g = getGroup({ id, relay, relayPubkey })
   await g.publish({ kind: 9007, content: "", tags: [] })
   await g.editMetadata(opts)

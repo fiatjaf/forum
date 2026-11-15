@@ -204,7 +204,13 @@ function Members(props: { group: Group }) {
             }
           }}
         >
-          <input class="inp mono wide" placeholder="npub1…" aria-label="Add a member" value={input()} onInput={e => setInput((e.target as HTMLInputElement).value)} />
+          <input
+            class="inp mono wide"
+            placeholder="npub1…"
+            aria-label="Add a member"
+            value={input()}
+            onInput={e => setInput((e.target as HTMLInputElement).value)}
+          />
           <button class="btn" type="submit">
             add member
           </button>
@@ -273,7 +279,9 @@ function LeaveGroup(props: { group: Group }) {
     <section id="leave" class="card dz" aria-labelledby="leave-heading">
       <div class="card-h">
         <h2 id="leave-heading">leave group</h2>
-        <p>This forum is a NIP-29 group. Leaving tells the relay you're no longer a member and takes it off your list.</p>
+        <p>
+          This forum is a NIP-29 group. Leaving tells the relay you're no longer a member and takes it off your list.
+        </p>
       </div>
       <div class="card-b">
         <p class="help">Your threads and comments stay in the group.</p>

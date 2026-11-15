@@ -75,7 +75,8 @@ function showDesktopAlert(notes: Note[]) {
         ? `replied to you in “${thread}”`
         : `commented on your thread “${thread}”`
   const title = notes.length === 1 ? action : `${notes.length} new notifications`
-  const body = notes.length === 1 ? `${who}: ${snippet(newest.evt.content, 140)}` : `${who} and ${notes.length - 1} more`
+  const body =
+    notes.length === 1 ? `${who}: ${snippet(newest.evt.content, 140)}` : `${who} and ${notes.length - 1} more`
 
   try {
     const alert = new Notification(title, { body, tag: "forum-notification" })
@@ -117,7 +118,11 @@ export function Notifications() {
   )
 
   const unread = createMemo(() => notes().filter(n => n.evt.created_at > seen()))
-  const earlier = createMemo(() => notes().filter(n => n.evt.created_at <= seen()).slice(0, 100))
+  const earlier = createMemo(() =>
+    notes()
+      .filter(n => n.evt.created_at <= seen())
+      .slice(0, 100)
+  )
 
   return (
     <div class="notifications-page">
@@ -158,7 +163,11 @@ function Item(props: { n: Note; unread?: boolean }) {
   })
   return (
     <li class={"n" + (props.unread ? " un" : "")}>
-      <span class={"dot" + (props.unread ? "" : " dot-empty")} aria-label={props.unread ? "unread" : undefined} aria-hidden={!props.unread}></span>
+      <span
+        class={"dot" + (props.unread ? "" : " dot-empty")}
+        aria-label={props.unread ? "unread" : undefined}
+        aria-hidden={!props.unread}
+      ></span>
       <span class="kind">{label}</span>
       <div class="n-body">
         <a class="what" href={`/${n.g.naddr}/${rootId}#c${n.evt.id}`}>

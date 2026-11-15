@@ -30,8 +30,7 @@ export function tokenEmail(token: string): string {
   }
 }
 
-const emailHash = (email: string) =>
-  bytesToHex(argon2id(utf8.encode(email), "pomegranate", { t: 1, m: 65536, p: 4 }))
+const emailHash = (email: string) => bytesToHex(argon2id(utf8.encode(email), "pomegranate", { t: 1, m: 65536, p: 4 }))
 
 async function assertOk(resp: Response, label: string) {
   if (resp.ok) return
@@ -96,7 +95,13 @@ async function waitForAccount(central: string, token: string, log: (m: string) =
   throw new Error("the operators never confirmed the account")
 }
 
-async function register(central: string, token: string, email: string, secretKey: Uint8Array, log: (m: string) => void) {
+async function register(
+  central: string,
+  token: string,
+  email: string,
+  secretKey: Uint8Array,
+  log: (m: string) => void
+) {
   const operators = OPERATORS
   const threshold = Math.ceil((operators.length * 7) / 12)
   const session = crypto.randomUUID()
@@ -108,7 +113,10 @@ async function register(central: string, token: string, email: string, secretKey
     {
       kind: 20445,
       created_at: Math.floor(Date.now() / 1000),
-      tags: [["threshold", String(threshold)], ...operators.map((op, i) => ["operator", op, hexPubShard(shards[i].pubShard)])],
+      tags: [
+        ["threshold", String(threshold)],
+        ...operators.map((op, i) => ["operator", op, hexPubShard(shards[i].pubShard)])
+      ],
       content: ""
     },
     secretKey
@@ -116,7 +124,11 @@ async function register(central: string, token: string, email: string, secretKey
   await assertOk(
     await fetch(`${central}/register`, {
       method: "POST",
-      headers: { "Content-Type": "application/json", Authorization: "Token " + token, "X-Pomegranate-Session": session },
+      headers: {
+        "Content-Type": "application/json",
+        Authorization: "Token " + token,
+        "X-Pomegranate-Session": session
+      },
       body: JSON.stringify(reg)
     }),
     "central /register"
@@ -129,7 +141,10 @@ async function register(central: string, token: string, email: string, secretKey
       {
         kind: 20444,
         created_at: Math.floor(Date.now() / 1000),
-        tags: [["central", central], ["email", email]],
+        tags: [
+          ["central", central],
+          ["email", email]
+        ],
         content: hexShard(shards[i])
       },
       secretKey
@@ -152,7 +167,10 @@ async function register(central: string, token: string, email: string, secretKey
     {
       kind: KIND_SETUP_ANNOUNCEMENT,
       created_at: Math.floor(Date.now() / 1000),
-      tags: [["m", emailHash(email)], ["central", central]],
+      tags: [
+        ["m", emailHash(email)],
+        ["central", central]
+      ],
       content: ""
     },
     secretKey

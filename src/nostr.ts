@@ -19,8 +19,7 @@ export const PROFILE_RELAYS = [...BIG_RELAYS, "wss://purplepag.es/"]
 // through Pomegranate gives us.
 
 type StoredAccount =
-  | { type: "nsec"; sk: string; created: boolean }
-  | { type: "bunker"; bunker: string; clientSk: string; pubkey: string }
+  { type: "nsec"; sk: string; created: boolean } | { type: "bunker"; bunker: string; clientSk: string; pubkey: string }
 
 function readJSON<T>(key: string): T | null {
   try {

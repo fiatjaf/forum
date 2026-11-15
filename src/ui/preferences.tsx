@@ -70,7 +70,13 @@ export function Sidebar(props: { label: string; items: SidebarItem[] }) {
 
   return (
     <nav ref={nav} class="toc" aria-label={props.label}>
-      <For each={props.items}>{item => <a href={`#${item.id}`} class={item.red ? "red" : undefined}>{item.label}</a>}</For>
+      <For each={props.items}>
+        {item => (
+          <a href={`#${item.id}`} class={item.red ? "red" : undefined}>
+            {item.label}
+          </a>
+        )}
+      </For>
     </nav>
   )
 }
@@ -176,7 +182,9 @@ export function DesktopAlertsCard() {
     <section id="notifications" class="card" aria-labelledby="notifications-heading">
       <div class="card-h">
         <h2 id="notifications-heading">notifications</h2>
-        <p>Alerts for replies to you, comments on your threads and mentions. The bell in the header always shows them.</p>
+        <p>
+          Alerts for replies to you, comments on your threads and mentions. The bell in the header always shows them.
+        </p>
       </div>
       <div class="sub">
         <div class="sub-h">
@@ -216,10 +224,13 @@ export function ProgrammaticAccess(props: { group?: Group }) {
 
   const copy = () => {
     if (!navigator.clipboard) return
-    navigator.clipboard.writeText(address()).then(() => {
-      setCopied(true)
-      window.setTimeout(() => setCopied(false), 1200)
-    }).catch(() => {})
+    navigator.clipboard
+      .writeText(address())
+      .then(() => {
+        setCopied(true)
+        window.setTimeout(() => setCopied(false), 1200)
+      })
+      .catch(() => {})
   }
 
   return (
@@ -243,15 +254,23 @@ export function ProgrammaticAccess(props: { group?: Group }) {
           when={props.group}
           fallback={
             <p class="help">
-              Open a forum's settings to copy its group address. The examples below use <code>&lt;address&gt;</code>,{" "}
-              <code>&lt;group-id&gt;</code> and <code>&lt;relay&gt;</code> as placeholders.
+              Open a forum's settings to copy its group id and relay. The examples below use{" "}
+              <code>&lt;group-id&gt;</code>, <code>&lt;relay&gt;</code>, <code>&lt;thread-id&gt;</code> and{" "}
+              <code>&lt;thread-author&gt;</code> as placeholders.
             </p>
           }
         >
           <div class="field">
             <label for="group-address">group address</label>
             <div class="row-inline">
-              <input id="group-address" class="inp wide mono" type="text" readonly value={address()} aria-label="Group address" />
+              <input
+                id="group-address"
+                class="inp wide mono"
+                type="text"
+                readonly
+                value={address()}
+                aria-label="Group address"
+              />
               <button class="btn" type="button" onClick={copy}>
                 {copied() ? "copied" : "copy"}
               </button>
@@ -261,24 +280,29 @@ export function ProgrammaticAccess(props: { group?: Group }) {
 
         <div class="programmatic-block">
           <h3>read</h3>
-          <pre class="api-example">{`# group info, members and threads
-nak group info <address>
-nak group members <address>
-nak group forum <address>
-nak group forum <address> <thread-id>
+          <pre class="api-example">{`# group metadata, admins and members
+nak req -k 39000 -d ${groupId()} ${relay()}
+nak req -k 39001 -d ${groupId()} ${relay()}
+nak req -k 39002 -d ${groupId()} ${relay()}
 
-# or with a plain NIP-01 filter
+# threads and comments
 nak req -k 11 -h ${groupId()} -l 20 ${relay()}
-nak req -k 1111 -h ${groupId()} -l 50 ${relay()}`}</pre>
+nak req -k 1111 -h ${groupId()} -l 50 ${relay()}
+
+# one thread
+nak req -i <thread-id> ${relay()}`}</pre>
         </div>
 
         <div class="programmatic-block">
           <h3>write</h3>
-          <pre class="api-example">{`# post a thread (opens your editor)
-nak group forum create <address>
+          <pre class="api-example">{`# post a thread
+nak event -k 11 -h ${groupId()} -t "title=hello world" -c "first post" ${relay()}
 
-# reply to a thread (the prefix from the forum listing)
-nak group forum comment <address> <thread-id>
+# reply to a thread (a NIP-22 comment)
+nak event -k 1111 -h ${groupId()} \\
+  -t E=<thread-id> -t K=11 -t P=<thread-author> \\
+  -t e=<thread-id> -t k=11 -t p=<thread-author> \\
+  -c "nice thread" ${relay()}
 
 # join or leave
 nak event -k 9021 -h ${groupId()} ${relay()}
@@ -286,8 +310,8 @@ nak event -k 9022 -h ${groupId()} ${relay()}`}</pre>
         </div>
 
         <p class="help">
-          Replace <code>&lt;address&gt;</code> with the group address above. Private groups need <code>--auth</code>, and your key goes in{" "}
-          <code>--sec</code> or a local signer.
+          Replace the placeholders with the forum's group id and the thread's id and author. Private groups need{" "}
+          <code>--auth</code>, and your key goes in <code>--sec</code> or a local signer.
         </p>
       </div>
     </section>

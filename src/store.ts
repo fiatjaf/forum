@@ -27,9 +27,7 @@ store.loadReplaceables = (async (specs: [number, string, string?][]) => {
       e.kind === kind &&
       e.pubkey === pubkey &&
       (!isAddressableKind(kind) || d === undefined || (e.tags.find(t => t[0] === "d")?.[1] ?? "") === d)
-    return Array.isArray(stored)
-      ? [lastAttempt, stored.filter(fits)]
-      : [lastAttempt, fits(stored) ? stored : undefined]
+    return Array.isArray(stored) ? [lastAttempt, stored.filter(fits)] : [lastAttempt, fits(stored) ? stored : undefined]
   })
 }) as any
 

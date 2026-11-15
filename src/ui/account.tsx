@@ -208,7 +208,14 @@ function NameCard() {
         >
           <div class="field">
             <label for="name">name</label>
-            <input id="name" class="inp" value={name()} required maxLength={60} onInput={e => setName((e.target as HTMLInputElement).value)} />
+            <input
+              id="name"
+              class="inp"
+              value={name()}
+              required
+              maxLength={60}
+              onInput={e => setName((e.target as HTMLInputElement).value)}
+            />
           </div>
           <div class="row">
             <button class="btn pri" type="submit" disabled={busy()}>

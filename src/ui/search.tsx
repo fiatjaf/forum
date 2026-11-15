@@ -13,7 +13,10 @@ export function SearchPage(props: { group: Group }) {
   const page = Math.max(1, parseInt(params.get("page") || "1") || 1)
   const [input, setInput] = createSignal(q)
   const base = `/${g.naddr}`
-  const results = useAsync(() => (q.trim() ? search(q, g.id) : Promise.resolve([])), () => [q, g.id])
+  const results = useAsync(
+    () => (q.trim() ? search(q, g.id) : Promise.resolve([])),
+    () => [q, g.id]
+  )
 
   const visible = () => (results.value ?? []).filter(evt => !g.isDeleted(evt))
   const totalPages = () => Math.max(1, Math.ceil(visible().length / PER_PAGE))
@@ -34,7 +37,13 @@ export function SearchPage(props: { group: Group }) {
           <span class="ps" aria-hidden="true">
             grep
           </span>
-          <input type="search" value={input()} onInput={e => setInput((e.target as HTMLInputElement).value)} aria-label="Search threads and comments" autofocus />
+          <input
+            type="search"
+            value={input()}
+            onInput={e => setInput((e.target as HTMLInputElement).value)}
+            aria-label="Search threads and comments"
+            autofocus
+          />
           <button class="btn pri" type="submit">
             search
           </button>
@@ -48,9 +57,7 @@ export function SearchPage(props: { group: Group }) {
       ) : visible().length ? (
         <>
           <div class="search-summary">
-            <span class="label">
-              {plural(visible().length, "result")} · best match first
-            </span>
+            <span class="label">{plural(visible().length, "result")} · best match first</span>
             <span class="label">threads and comments</span>
           </div>
           <ol class="rl">
@@ -70,7 +77,8 @@ export function SearchPage(props: { group: Group }) {
                     <div class="search-result-body">
                       {isComment ? (
                         <div class="ctx">
-                          <UserLink class="au" pubkey={evt.pubkey} group={g} /> in <a href={threadLink}>{root ? titleOf(root) : "a thread"}</a>
+                          <UserLink class="au" pubkey={evt.pubkey} group={g} /> in{" "}
+                          <a href={threadLink}>{root ? titleOf(root) : "a thread"}</a>
                         </div>
                       ) : (
                         <a class="tt" href={threadLink}>

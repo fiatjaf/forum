@@ -125,7 +125,10 @@ function OpenForum() {
       class="open-forum"
       onSubmit={e => {
         e.preventDefault()
-        const code = value().trim().replace(/^nostr:/, "").replace(/^https?:\/\/[^/]+\//, "")
+        const code = value()
+          .trim()
+          .replace(/^nostr:/, "")
+          .replace(/^https?:\/\/[^/]+\//, "")
         if (/^(naddr1|nevent1)/.test(code)) navigate("/" + code)
         else setError("Paste a forum link (naddr1…) or a thread link (nevent1…).")
       }}

@@ -48,7 +48,15 @@ export function NewThread(props: { group: Group }) {
         >
           <div class="field">
             <label for="thread-title">title</label>
-            <input id="thread-title" class="inp" value={title()} maxLength={200} required autofocus onInput={e => setTitle((e.target as HTMLInputElement).value)} />
+            <input
+              id="thread-title"
+              class="inp"
+              value={title()}
+              maxLength={200}
+              required
+              autofocus
+              onInput={e => setTitle((e.target as HTMLInputElement).value)}
+            />
             <div class="hint">
               <span></span>
               <span>{title().length} / 200</span>
@@ -60,7 +68,11 @@ export function NewThread(props: { group: Group }) {
             </label>
             <Editor id="thread-body" format="djot" value={body()} onInput={setBody} onSubmit={submit} label="Body" />
             <div class="hint">
-              <span>{/^https?:\/\/\S+$/.test(body().trim()) ? "a link thread: the title will point to this link" : "a body that is only a link makes a link thread"}</span>
+              <span>
+                {/^https?:\/\/\S+$/.test(body().trim())
+                  ? "a link thread: the title will point to this link"
+                  : "a body that is only a link makes a link thread"}
+              </span>
               <span>{body().length} / 20000</span>
             </div>
           </div>
@@ -101,8 +113,8 @@ export function NewThread(props: { group: Group }) {
           </pre>
           <div class="label">how it shows</div>
           <p>
-            If the body is only a link, the title links to it and the domain shows next to it. New threads go to the top of the
-            front page, and threads with new comments move up.
+            If the body is only a link, the title links to it and the domain shows next to it. New threads go to the top
+            of the front page, and threads with new comments move up.
           </p>
         </aside>
       </div>

@@ -20,9 +20,7 @@ async function resolve(code: string): Promise<string> {
   const [local] = await query({ ids: [id] }, 1)
   for (const url of relays.map(normalizeRelay)) {
     authRelays.add(url)
-    const evt =
-      local ??
-      (await pool.get([url], { ids: [id] }, { maxWait: 8000, onauth } as any).catch(() => null))
+    const evt = local ?? (await pool.get([url], { ids: [id] }, { maxWait: 8000, onauth } as any).catch(() => null))
     if (evt) {
       found = { evt, relay: url }
       break

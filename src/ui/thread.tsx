@@ -3,7 +3,22 @@ import { For, Show, createEffect, createMemo, createSignal, type Accessor } from
 import type { Group } from "../groups"
 import { me } from "../nostr"
 import { useChanges } from "../state"
-import { Counter, Djot, Editor, NoteContent, UserLink, VoteButton, ago, displayName, lastRead, markRead, navigate, plural, linkOf, titleOf } from "./common"
+import {
+  Counter,
+  Djot,
+  Editor,
+  NoteContent,
+  UserLink,
+  VoteButton,
+  ago,
+  displayName,
+  lastRead,
+  markRead,
+  navigate,
+  plural,
+  linkOf,
+  titleOf
+} from "./common"
 import { Membership } from "./forum"
 
 const parentOf = (c: NostrEvent) => c.tags.findLast(t => t[0] === "e")?.[1]
@@ -86,7 +101,8 @@ export function ThreadPage(props: { group: Group; id: string }) {
             list.push(c)
             map.set(p, list)
           }
-          const best = (a: NostrEvent, b: NostrEvent) => g.voters(b.id).size - g.voters(a.id).size || a.created_at - b.created_at
+          const best = (a: NostrEvent, b: NostrEvent) =>
+            g.voters(b.id).size - g.voters(a.id).size || a.created_at - b.created_at
           for (const list of map.values()) list.sort(best)
           return map
         })
@@ -242,7 +258,9 @@ function Comment(props: { c: NostrEvent; ctx: Ctx }) {
           {collapsed() ? "[+]" : "[-]"}
         </button>
       </div>
-      <div class={"cb" + (info().deleted ? " gone" : "")}>{info().deleted ? <p>[deleted]</p> : <NoteContent event={c} group={g} />}</div>
+      <div class={"cb" + (info().deleted ? " gone" : "")}>
+        {info().deleted ? <p>[deleted]</p> : <NoteContent event={c} group={g} />}
+      </div>
       {!info().deleted && (
         <div class="ca">
           <a
