@@ -1,20 +1,21 @@
-import { useState } from "preact/hooks"
+import { createSignal } from "solid-js"
 import type { Group } from "../groups"
 import { Editor, navigate } from "./common"
 
-export function NewThread({ group: g }: { group: Group }) {
-  const [title, setTitle] = useState("")
-  const [body, setBody] = useState("")
-  const [error, setError] = useState("")
-  const [busy, setBusy] = useState(false)
+export function NewThread(props: { group: Group }) {
+  const g = props.group
+  const [title, setTitle] = createSignal("")
+  const [body, setBody] = createSignal("")
+  const [error, setError] = createSignal("")
+  const [busy, setBusy] = createSignal(false)
   const base = `/${g.naddr}`
 
   const submit = async () => {
-    if (!title.trim() || busy) return
+    if (!title().trim() || busy()) return
     setBusy(true)
     setError("")
     try {
-      const evt = await g.createThread(title.trim(), body.trim())
+      const evt = await g.createThread(title().trim(), body().trim())
       navigate(`${base}/${evt.id}`)
     } catch (err) {
       setError(`Couldn't post: ${(err as Error).message ?? err}`)
@@ -30,9 +31,9 @@ export function NewThread({ group: g }: { group: Group }) {
           <span class="p">~/</span>new thread
         </h1>
       </div>
-      {error && (
+      {error() && (
         <p class="err" role="alert">
-          {error}
+          {error()}
         </p>
       )}
 
@@ -47,25 +48,25 @@ export function NewThread({ group: g }: { group: Group }) {
         >
           <div class="field">
             <label for="thread-title">title</label>
-            <input id="thread-title" class="inp" value={title} maxLength={200} required autofocus onInput={e => setTitle((e.target as HTMLInputElement).value)} />
+            <input id="thread-title" class="inp" value={title()} maxLength={200} required autofocus onInput={e => setTitle((e.target as HTMLInputElement).value)} />
             <div class="hint">
               <span></span>
-              <span>{title.length} / 200</span>
+              <span>{title().length} / 200</span>
             </div>
           </div>
           <div class="field">
             <label for="thread-body">
               body <span>(optional, djot)</span>
             </label>
-            <Editor id="thread-body" format="djot" value={body} onInput={setBody} onSubmit={submit} label="Body" />
+            <Editor id="thread-body" format="djot" value={body()} onInput={setBody} onSubmit={submit} label="Body" />
             <div class="hint">
-              <span>{/^https?:\/\/\S+$/.test(body.trim()) ? "a link thread: the title will point to this link" : "a body that is only a link makes a link thread"}</span>
-              <span>{body.length} / 20000</span>
+              <span>{/^https?:\/\/\S+$/.test(body().trim()) ? "a link thread: the title will point to this link" : "a body that is only a link makes a link thread"}</span>
+              <span>{body().length} / 20000</span>
             </div>
           </div>
           <div class="thread-form-actions">
-            <button class="btn pri" type="submit" disabled={busy}>
-              {busy ? "posting…" : "post thread"}
+            <button class="btn pri" type="submit" disabled={busy()}>
+              {busy() ? "posting…" : "post thread"}
             </button>
             <a class="btn ghost" href={base}>
               cancel

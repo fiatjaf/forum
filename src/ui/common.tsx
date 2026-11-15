@@ -4,11 +4,10 @@ import * as nip19 from "@nostr/tools/nip19"
 import { type Block, parse } from "@nostr/tools/nip27"
 import DOMPurify from "dompurify"
 import * as djot from "@djot/djot"
-import type { ComponentChildren } from "preact"
-import { useEffect, useRef, useState } from "preact/hooks"
+import { type JSX, createEffect, createMemo, createSignal, on, onCleanup, onMount } from "solid-js"
 import { me, pendingName, PROFILE_RELAYS } from "../nostr"
 import type { Group } from "../groups"
-import { emit } from "../state"
+import { emit, useChanges } from "../state"
 
 // ─── navigation ────────────────────────────────────────────────
 
@@ -70,10 +69,14 @@ export function displayName(pubkey: string, relays: string[] = []): string {
 
 export const npub = (pubkey: string) => nip19.npubEncode(pubkey)
 
-export function UserLink({ pubkey, group, class: cls }: { pubkey: string; group?: Group; class?: string }) {
+export function UserLink(props: { pubkey: string; group?: Group; class?: string }) {
+  const name = createMemo(() => {
+    useChanges()
+    return displayName(props.pubkey, props.group ? [props.group.relay] : [])
+  })
   return (
-    <a class={cls} href={`/${npub(pubkey)}`}>
-      {displayName(pubkey, group ? [group.relay] : [])}
+    <a class={props.class} href={`/${npub(props.pubkey)}`}>
+      {name()}
     </a>
   )
 }
@@ -120,55 +123,51 @@ export function snippet(text: string, max = 200): string {
 const mediaBlock = (block?: Block) =>
   block?.type === "image" || block?.type === "video" || block?.type === "audio"
 
-export function NoteContent({
-  event,
-  group,
-  class: cls
-}: {
+export function NoteContent(props: {
   event: Pick<NostrEvent, "content" | "tags">
   group?: Group
   class?: string
 }) {
-  const blocks = [...parse(event as NostrEvent)]
+  const blocks = [...parse(props.event as NostrEvent)]
 
   return (
-    <div class={"nc" + (cls ? " " + cls : "")}>
+    <div class={"nc" + (props.class ? " " + props.class : "")}>
       {blocks.map((block, i) => {
         switch (block.type) {
           case "text": {
             let text = block.text
             if (mediaBlock(blocks[i - 1]) && text.startsWith("\n")) text = text.slice(1)
             if (mediaBlock(blocks[i + 1]) && text.endsWith("\n")) text = text.slice(0, -1)
-            return text ? <span key={i}>{text}</span> : null
+            return text ? <span>{text}</span> : null
           }
           case "url":
             return (
-              <a key={i} href={block.url} target="_blank" rel="nofollow noopener">
+              <a href={block.url} target="_blank" rel="nofollow noopener">
                 {block.url}
               </a>
             )
           case "relay":
             return (
-              <span key={i} class="relay" title={block.url}>
+              <span class="relay" title={block.url}>
                 {block.url}
               </span>
             )
           case "image":
-            return <img key={i} class="note-image" src={block.url} loading="lazy" alt="" />
+            return <img class="note-image" src={block.url} loading="lazy" alt="" />
           case "video":
-            return <video key={i} class="note-video" src={block.url} controls preload="metadata" />
+            return <video class="note-video" src={block.url} controls preload="metadata" />
           case "audio":
-            return <audio key={i} class="note-audio" src={block.url} controls preload="metadata" />
+            return <audio class="note-audio" src={block.url} controls preload="metadata" />
           case "reference":
-            return <NoteReference key={i} pointer={block.pointer} group={group} />
+            return <NoteReference pointer={block.pointer} group={props.group} />
           case "hashtag":
             return (
-              <span key={i} class="hashtag">
+              <span class="hashtag">
                 #{block.value}
               </span>
             )
           case "emoji":
-            return <img key={i} class="emoji" src={block.url} alt={`:${block.shortcode}:`} title={`:${block.shortcode}:`} loading="lazy" />
+            return <img class="emoji" src={block.url} alt={`:${block.shortcode}:`} title={`:${block.shortcode}:`} loading="lazy" />
           default:
             return null
         }
@@ -177,13 +176,13 @@ export function NoteContent({
   )
 }
 
-function NoteReference({
-  pointer,
-  group
-}: {
+function NoteReference(props: {
   pointer: Extract<Block, { type: "reference" }>["pointer"]
   group?: Group
 }) {
+  const pointer = props.pointer
+  const group = props.group
+
   if ("identifier" in pointer) {
     const code = nip19.naddrEncode(pointer)
     return (
@@ -196,36 +195,31 @@ function NoteReference({
   if ("id" in pointer) {
     // A reference to a thread or comment we already have opens in its forum
     // directly; anything else goes through the nevent resolver.
-    if (group) {
-      const thread = group.threads.get(pointer.id)
-      if (thread) {
-        return (
-          <a class="ref" href={`/${group.naddr}/${thread.id}`} title={pointer.id}>
-            %{pointer.id.slice(0, 8)}
-          </a>
-        )
+    const href = createMemo(() => {
+      useChanges()
+      if (group) {
+        const thread = group.threads.get(pointer.id)
+        if (thread) return `/${group.naddr}/${thread.id}`
+        const comment = group.comments.get(pointer.id)
+        const root = comment?.tags.find(t => t[0] === "E")?.[1]
+        if (comment && root) return `/${group.naddr}/${root}#c${comment.id}`
       }
-      const comment = group.comments.get(pointer.id)
-      const root = comment?.tags.find(t => t[0] === "E")?.[1]
-      if (comment && root) {
-        return (
-          <a class="ref" href={`/${group.naddr}/${root}#c${comment.id}`} title={pointer.id}>
-            %{pointer.id.slice(0, 8)}
-          </a>
-        )
-      }
-    }
-    const code = nip19.neventEncode(pointer)
+      return "/" + nip19.neventEncode(pointer)
+    })
     return (
-      <a class="ref" href={"/" + code} title={pointer.id}>
+      <a class="ref" href={href()} title={pointer.id}>
         %{pointer.id.slice(0, 8)}
       </a>
     )
   }
 
+  const name = createMemo(() => {
+    useChanges()
+    return displayName(pointer.pubkey, pointer.relays)
+  })
   return (
     <a class="mention" href={`/${npub(pointer.pubkey)}`}>
-      @{displayName(pointer.pubkey, pointer.relays)}
+      @{name()}
     </a>
   )
 }
@@ -244,14 +238,15 @@ function renderMentions(text: string): string {
 }
 
 // Thread bodies are djot.
-export function Djot({ text, class: cls }: { text: string; class?: string }) {
-  let html: string
-  try {
-    html = DOMPurify.sanitize(djot.renderHTML(djot.parse(renderMentions(text))))
-  } catch {
-    html = DOMPurify.sanitize(text.replace(/[&<>]/g, c => `&#${c.charCodeAt(0)};`).replace(/\n/g, "<br>"))
+export function Djot(props: { text: string; class?: string }) {
+  const html = () => {
+    try {
+      return DOMPurify.sanitize(djot.renderHTML(djot.parse(renderMentions(props.text))))
+    } catch {
+      return DOMPurify.sanitize(props.text.replace(/[&<>]/g, c => `&#${c.charCodeAt(0)};`).replace(/\n/g, "<br>"))
+    }
   }
-  return <div class={cls} dangerouslySetInnerHTML={{ __html: html }} />
+  return <div class={props.class} innerHTML={html()} />
 }
 
 // ─── editor ────────────────────────────────────────────────────
@@ -269,28 +264,28 @@ export function Editor(props: {
   autofocus?: boolean
   id?: string
   label: string
-  bar?: ComponentChildren
+  bar?: JSX.Element
   format?: "nip27" | "djot"
 }) {
-  const [tab, setTab] = useState<"write" | "preview">("write")
-  const ref = useRef<HTMLTextAreaElement>(null)
-  useEffect(() => {
-    if (props.autofocus) ref.current?.focus()
-  }, [])
+  const [tab, setTab] = createSignal<"write" | "preview">("write")
+  let ref: HTMLTextAreaElement | undefined
+  onMount(() => {
+    if (props.autofocus) ref?.focus()
+  })
   return (
     <div class="editor">
       <div class="tabs" role="tablist">
-        <button type="button" class={tab === "write" ? "on" : ""} role="tab" aria-selected={tab === "write"} onClick={() => setTab("write")}>
+        <button type="button" class={tab() === "write" ? "on" : ""} role="tab" aria-selected={tab() === "write"} onClick={() => setTab("write")}>
           write
         </button>
-        <button type="button" class={tab === "preview" ? "on" : ""} role="tab" aria-selected={tab === "preview"} onClick={() => setTab("preview")}>
+        <button type="button" class={tab() === "preview" ? "on" : ""} role="tab" aria-selected={tab() === "preview"} onClick={() => setTab("preview")}>
           preview
         </button>
       </div>
       <textarea
         ref={ref}
         id={props.id}
-        hidden={tab !== "write"}
+        hidden={tab() !== "write"}
         rows={props.rows}
         maxLength={MAX_BODY}
         required={props.required}
@@ -305,7 +300,7 @@ export function Editor(props: {
           }
         }}
       />
-      {tab === "preview" && (
+      {tab() === "preview" && (
         <div class={"preview" + (props.format === "djot" ? " prose" : "")}>
           {props.value.trim() ? (
             props.format === "djot" ? (
@@ -323,30 +318,33 @@ export function Editor(props: {
   )
 }
 
-export function Counter({ value, max = MAX_BODY }: { value: string; max?: number }) {
+export function Counter(props: { value: string; max?: number }) {
   return (
     <span>
-      {value.length} / {max}
+      {props.value.length} / {props.max ?? MAX_BODY}
     </span>
   )
 }
 
 // ─── votes ─────────────────────────────────────────────────────
 
-export function VoteButton({ group, target, size = 10 }: { group: Group; target: NostrEvent; size?: number }) {
-  const voted = group.myVotes(target.id).length > 0
-  const [busy, setBusy] = useState(false)
+export function VoteButton(props: { group: Group; target: NostrEvent; size?: number }) {
+  const voted = () => {
+    useChanges()
+    return props.group.myVotes(props.target.id).length > 0
+  }
+  const [busy, setBusy] = createSignal(false)
   return (
     <button
-      class={"vote" + (voted ? " on" : "")}
+      class={"vote" + (voted() ? " on" : "")}
       type="button"
-      disabled={busy}
-      aria-label={voted ? "Remove upvote" : "Upvote"}
-      aria-pressed={voted}
+      disabled={busy()}
+      aria-label={voted() ? "Remove upvote" : "Upvote"}
+      aria-pressed={voted()}
       onClick={async () => {
         setBusy(true)
         try {
-          await group.toggleVote(target)
+          await props.group.toggleVote(props.target)
         } catch (err) {
           alert(`Couldn't vote: ${(err as Error).message}`)
         } finally {
@@ -354,7 +352,7 @@ export function VoteButton({ group, target, size = 10 }: { group: Group; target:
         }
       }}
     >
-      <svg width={size} height={size} viewBox="0 0 10 10" aria-hidden="true">
+      <svg width={props.size ?? 10} height={props.size ?? 10} viewBox="0 0 10 10" aria-hidden="true">
         <path d="M5 1.5 9 8.5H1z" fill="currentColor"></path>
       </svg>
     </button>
@@ -386,18 +384,34 @@ export function markRead(threadId: string, ts: number) {
   } catch {}
 }
 
-export function useAsync<T>(fn: () => Promise<T>, deps: unknown[]): { value?: T; error?: string; loading: boolean } {
-  const [state, setState] = useState<{ value?: T; error?: string; loading: boolean }>({ loading: true })
-  useEffect(() => {
-    let alive = true
-    setState({ loading: true })
-    fn().then(
-      value => alive && setState({ value, loading: false }),
-      err => alive && setState({ error: String(err?.message ?? err), loading: false })
-    )
-    return () => {
-      alive = false
+export function useAsync<T>(fn: () => Promise<T>, deps: () => unknown): {
+  readonly value: T | undefined
+  readonly error: string | undefined
+  readonly loading: boolean
+} {
+  const [state, setState] = createSignal<{ value?: T; error?: string; loading: boolean }>({ loading: true })
+  createEffect(
+    on(deps, () => {
+      let alive = true
+      setState({ loading: true })
+      fn().then(
+        value => alive && setState({ value, loading: false }),
+        err => alive && setState({ error: String(err?.message ?? err), loading: false })
+      )
+      onCleanup(() => {
+        alive = false
+      })
+    })
+  )
+  return {
+    get value() {
+      return state().value
+    },
+    get error() {
+      return state().error
+    },
+    get loading() {
+      return state().loading
     }
-  }, deps)
-  return state
+  }
 }

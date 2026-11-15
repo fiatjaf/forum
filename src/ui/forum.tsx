@@ -1,18 +1,48 @@
-import { useState } from "preact/hooks"
+import { For, Show, createMemo, createSignal } from "solid-js"
+import type { NostrEvent } from "@nostr/tools/core"
 import { inMyGroups, addToMyGroups, type Group } from "../groups"
 import { me } from "../nostr"
 import { isLive, rejoined } from "../sync"
+import { useChanges } from "../state"
 import { UserLink, VoteButton, ago, lastRead, linkOf, plural, titleOf } from "./common"
 
 const PER_PAGE = 30
 
-export function Forum({ group: g }: { group: Group }) {
+export function Forum(props: { group: Group }) {
+  const g = props.group
   const params = new URLSearchParams(location.search)
   const page = Math.max(1, parseInt(params.get("page") || "1") || 1)
-  const threads = g.visibleThreads().sort((a, b) => g.lastActivity(b) - g.lastActivity(a))
-  const totalPages = Math.max(1, Math.ceil(threads.length / PER_PAGE))
-  const shown = threads.slice((page - 1) * PER_PAGE, page * PER_PAGE)
+  const threads = createMemo(() => {
+    useChanges()
+    return g.visibleThreads().sort((a, b) => g.lastActivity(b) - g.lastActivity(a))
+  })
+  const totalPages = () => Math.max(1, Math.ceil(threads().length / PER_PAGE))
+  const shown = () => threads().slice((page - 1) * PER_PAGE, page * PER_PAGE)
   const base = `/${g.naddr}`
+  const live = () => {
+    useChanges()
+    return isLive(g)
+  }
+  const about = () => {
+    useChanges()
+    return g.metadata?.about
+  }
+  const syncing = () => {
+    useChanges()
+    return g.syncing
+  }
+  const metadata = () => {
+    useChanges()
+    return g.metadata
+  }
+  const member = () => {
+    useChanges()
+    return g.isMember()
+  }
+  const syncError = () => {
+    useChanges()
+    return g.syncError
+  }
 
   return (
     <div class="front-page">
@@ -21,70 +51,27 @@ export function Forum({ group: g }: { group: Group }) {
           <span class="p">~/</span>threads
         </h1>
         <span class="sp"></span>
-        {isLive(g) && (
+        {live() && (
           <span class="live">
             <i></i>live
           </span>
         )}
       </div>
-      {g.metadata?.about && <p class="forum-about">{g.metadata.about}</p>}
+      {about() && <p class="forum-about">{about()}</p>}
 
       <Membership group={g} />
 
-      {shown.length ? (
+      {shown().length ? (
         <ol class="list">
-          {shown.map(t => {
-            const score = g.voters(t.id).size
-            const voted = g.myVotes(t.id).length > 0
-            const comments = g.threadComments(t.id).filter(c => !g.isDeleted(c))
-            const read = lastRead(t.id)
-            const link = linkOf(t)
-            const unopened = read === undefined && t.pubkey !== me
-            const fresh = read === undefined ? 0 : comments.filter(c => c.created_at > read && c.pubkey !== me).length
-            return (
-              <li class="row" key={t.id}>
-                <div class="vc">
-                  <VoteButton group={g} target={t} />
-                  <span class={"sc" + (voted ? " on" : "")}>{score}</span>
-                </div>
-                <div class="thread-cell">
-                  {unopened && <span class="dot unread-dot" aria-label="unread"></span>}
-                  {link ? (
-                    <>
-                      <a class="tt" href={link.url} rel="nofollow noopener" target="_blank">
-                        {titleOf(t)}
-                      </a>{" "}
-                      <span class="dom">({link.domain})</span>
-                    </>
-                  ) : (
-                    <a class="tt" href={`${base}/${t.id}`}>
-                      {titleOf(t)}
-                    </a>
-                  )}
-                  <div class="meta">
-                    <UserLink pubkey={t.pubkey} group={g} />
-                    <span>·</span>
-                    <a href={`${base}/${t.id}#comments`}>{plural(comments.length, "comment")}</a>
-                    {fresh > 0 && (
-                      <>
-                        <span>·</span>
-                        <span class="new-count">{fresh} new</span>
-                      </>
-                    )}
-                  </div>
-                </div>
-                <span class="act">{ago(g.lastActivity(t))}</span>
-              </li>
-            )
-          })}
+          <For each={shown()}>{t => <ThreadRow group={g} thread={t} base={base} />}</For>
         </ol>
-      ) : g.syncing ? (
+      ) : syncing() ? (
         <p class="hint">Loading threads from {g.relay}…</p>
-      ) : !g.metadata && !g.isMember() ? (
+      ) : !metadata() && !member() ? (
         <p class="hint">Nothing to show. This forum is probably private: join it, or open an invite link, to read it.</p>
-      ) : g.syncError && !g.threads.size ? (
+      ) : syncError() && !g.threads.size ? (
         <p class="err" role="alert">
-          {g.syncError}
+          {syncError()}
         </p>
       ) : (
         <p>
@@ -92,10 +79,10 @@ export function Forum({ group: g }: { group: Group }) {
         </p>
       )}
 
-      {totalPages > 1 && (
+      {totalPages() > 1 && (
         <nav class="pagination" aria-label="Pages">
           <span class="label">
-            page {page} of {totalPages} · {PER_PAGE} per page
+            page {page} of {totalPages()} · {PER_PAGE} per page
           </span>
           <span class="sp"></span>
           {page > 1 && (
@@ -103,7 +90,7 @@ export function Forum({ group: g }: { group: Group }) {
               ‹ newer
             </a>
           )}
-          {page < totalPages && (
+          {page < totalPages() && (
             <a class="btn" href={`${base}?page=${page + 1}`} rel="next">
               older ›
             </a>
@@ -114,15 +101,79 @@ export function Forum({ group: g }: { group: Group }) {
   )
 }
 
-// Join, or keep in the list, depending on where the person stands.
-export function Membership({ group: g }: { group: Group }) {
-  const [busy, setBusy] = useState(false)
-  const [message, setMessage] = useState("")
-  const invite = new URLSearchParams(location.search).get("invite") ?? undefined
-  const member = g.isMember()
-  const listed = inMyGroups(g)
+function ThreadRow(props: { group: Group; thread: NostrEvent; base: string }) {
+  const g = props.group
+  const t = props.thread
+  const info = createMemo(() => {
+    useChanges()
+    const comments = g.threadComments(t.id).filter(c => !g.isDeleted(c))
+    const read = lastRead(t.id)
+    return {
+      score: g.voters(t.id).size,
+      voted: g.myVotes(t.id).length > 0,
+      commentCount: comments.length,
+      fresh: read === undefined ? 0 : comments.filter(c => c.created_at > read && c.pubkey !== me).length,
+      unopened: read === undefined && t.pubkey !== me,
+      link: linkOf(t),
+      title: titleOf(t),
+      activity: g.lastActivity(t)
+    }
+  })
+  return (
+    <li class="row">
+      <div class="vc">
+        <VoteButton group={g} target={t} />
+        <span class={"sc" + (info().voted ? " on" : "")}>{info().score}</span>
+      </div>
+      <div class="thread-cell">
+        {info().unopened && <span class="dot unread-dot" aria-label="unread"></span>}
+        {info().link ? (
+          <>
+            <a class="tt" href={info().link!.url} rel="nofollow noopener" target="_blank">
+              {info().title}
+            </a>{" "}
+            <span class="dom">({info().link!.domain})</span>
+          </>
+        ) : (
+          <a class="tt" href={`${props.base}/${t.id}`}>
+            {info().title}
+          </a>
+        )}
+        <div class="meta">
+          <UserLink pubkey={t.pubkey} group={g} />
+          <span>·</span>
+          <a href={`${props.base}/${t.id}#comments`}>{plural(info().commentCount, "comment")}</a>
+          {info().fresh > 0 && (
+            <>
+              <span>·</span>
+              <span class="new-count">{info().fresh} new</span>
+            </>
+          )}
+        </div>
+      </div>
+      <span class="act">{ago(info().activity)}</span>
+    </li>
+  )
+}
 
-  if (member && listed) return null
+// Join, or keep in the list, depending on where the person stands.
+export function Membership(props: { group: Group }) {
+  const g = props.group
+  const [busy, setBusy] = createSignal(false)
+  const [message, setMessage] = createSignal("")
+  const invite = new URLSearchParams(location.search).get("invite") ?? undefined
+  const member = () => {
+    useChanges()
+    return g.isMember()
+  }
+  const listed = () => {
+    useChanges()
+    return inMyGroups(g)
+  }
+  const meta = () => {
+    useChanges()
+    return g.metadata
+  }
 
   const run = async (fn: () => Promise<unknown>) => {
     setBusy(true)
@@ -137,42 +188,44 @@ export function Membership({ group: g }: { group: Group }) {
   }
 
   return (
-    <div class="notice membership" role="status">
-      {member ? (
-        <>
-          <span class="notice-title">member</span>
-          <span>You're a member, but this forum isn't in your list.</span>
-          <span class="sp"></span>
-          <button class="btn" disabled={busy} onClick={() => run(() => addToMyGroups(g))}>
-            add to my forums
-          </button>
-        </>
-      ) : (
-        <>
-          <span class="notice-title">{g.metadata?.isClosed && !invite ? "closed" : "join"}</span>
-          <span>
-            {g.metadata?.isClosed && !invite
-              ? "This forum is closed. You need an invite link or an admin to add you."
-              : g.metadata?.isPrivate || !g.metadata
-                ? invite
-                  ? "You have an invite. Join to read and post."
-                  : "This forum is private (or its relay won't say). Join to read and post."
-                : "You can read this forum. Join to keep it in your list."}
-          </span>
-          <span class="sp"></span>
-          {(!g.metadata?.isClosed || invite) && (
-            <button class="btn pri" disabled={busy} onClick={() => run(() => g.join(invite).then(() => rejoined(g)))}>
-              {busy ? "joining…" : "join"}
-            </button>
-          )}
-          {!listed && g.metadata?.isClosed && !invite && (
-            <button class="btn" disabled={busy} onClick={() => run(() => addToMyGroups(g))}>
+    <Show when={!member() || !listed()}>
+      <div class="notice membership" role="status">
+        {member() ? (
+          <>
+            <span class="notice-title">member</span>
+            <span>You're a member, but this forum isn't in your list.</span>
+            <span class="sp"></span>
+            <button class="btn" disabled={busy()} onClick={() => run(() => addToMyGroups(g))}>
               add to my forums
             </button>
-          )}
-        </>
-      )}
-      {message && <span class="err">{message}</span>}
-    </div>
+          </>
+        ) : (
+          <>
+            <span class="notice-title">{meta()?.isClosed && !invite ? "closed" : "join"}</span>
+            <span>
+              {meta()?.isClosed && !invite
+                ? "This forum is closed. You need an invite link or an admin to add you."
+                : meta()?.isPrivate || !meta()
+                  ? invite
+                    ? "You have an invite. Join to read and post."
+                    : "This forum is private (or its relay won't say). Join to read and post."
+                  : "You can read this forum. Join to keep it in your list."}
+            </span>
+            <span class="sp"></span>
+            {(!meta()?.isClosed || invite) && (
+              <button class="btn pri" disabled={busy()} onClick={() => run(() => g.join(invite).then(() => rejoined(g)))}>
+                {busy() ? "joining…" : "join"}
+              </button>
+            )}
+            {!listed() && meta()?.isClosed && !invite && (
+              <button class="btn" disabled={busy()} onClick={() => run(() => addToMyGroups(g))}>
+                add to my forums
+              </button>
+            )}
+          </>
+        )}
+        {message() && <span class="err">{message()}</span>}
+      </div>
+    </Show>
   )
 }

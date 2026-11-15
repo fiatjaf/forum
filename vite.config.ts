@@ -1,7 +1,8 @@
 import { defineConfig } from "vite"
+import solid from "vite-plugin-solid"
 
 export default defineConfig({
-  esbuild: { jsx: "automatic", jsxImportSource: "preact" },
+  plugins: [solid()],
   optimizeDeps: { exclude: ["@nostr/gadgets/redstore"] },
   worker: { format: "es" }
 })

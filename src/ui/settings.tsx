@@ -1,7 +1,8 @@
 import * as nip19 from "@nostr/tools/nip19"
-import { useEffect, useState } from "preact/hooks"
+import { For, createEffect, createSignal, untrack } from "solid-js"
 import { removeFromMyGroups, type Group } from "../groups"
 import { me } from "../nostr"
+import { useChanges } from "../state"
 import { UserLink, navigate } from "./common"
 import { ForumFields, type ForumForm } from "./create"
 
@@ -15,31 +16,26 @@ function formFrom(g: Group): ForumForm {
   }
 }
 
-export function ForumSettings({ group: g }: { group: Group }) {
-  const [form, setForm] = useState<ForumForm>(() => formFrom(g))
-  const [touched, setTouched] = useState(false)
-  const [error, setError] = useState("")
-  const [saved, setSaved] = useState(false)
-  const [busy, setBusy] = useState(false)
+export function ForumSettings(props: { group: Group }) {
+  const g = props.group
+  const [form, setForm] = createSignal<ForumForm>(formFrom(g))
+  const [touched, setTouched] = createSignal(false)
+  const [error, setError] = createSignal("")
+  const [saved, setSaved] = createSignal(false)
+  const [busy, setBusy] = createSignal(false)
+  const isAdmin = () => {
+    useChanges()
+    return g.isAdmin()
+  }
 
   // the metadata may arrive after the page opened
-  useEffect(() => {
-    if (!touched) setForm(formFrom(g))
-  }, [g.metadata?.event.id])
-
-  if (!g.isAdmin()) {
-    return (
-      <div class="admin-page">
-        <div class="pagehead">
-          <h1 class="pt">
-            <span class="p">~/</span>settings
-          </h1>
-        </div>
-        <p>Only admins of this forum can change its settings.</p>
-        <LeaveForum group={g} />
-      </div>
-    )
-  }
+  createEffect(() => {
+    useChanges()
+    const id = g.metadata?.event.id
+    untrack(() => {
+      if (id && !touched()) setForm(formFrom(g))
+    })
+  })
 
   return (
     <div class="admin-page">
@@ -48,89 +44,109 @@ export function ForumSettings({ group: g }: { group: Group }) {
           <span class="p">~/</span>settings
         </h1>
       </div>
+      {!isAdmin() ? (
+        <>
+          <p>Only admins of this forum can change its settings.</p>
+          <LeaveForum group={g} />
+        </>
+      ) : (
+        <>
+          {error() && (
+            <p class="err" role="alert">
+              {error()}
+            </p>
+          )}
 
-      {error && (
-        <p class="err" role="alert">
-          {error}
-        </p>
+          <form
+            class="account-form admin-settings-form"
+            onSubmit={async e => {
+              e.preventDefault()
+              setBusy(true)
+              setError("")
+              setSaved(false)
+              try {
+                await g.editMetadata(form())
+                setSaved(true)
+                setTouched(false)
+              } catch (err) {
+                setError(`Couldn't save: ${(err as Error).message ?? err}`)
+              } finally {
+                setBusy(false)
+              }
+            }}
+          >
+            <ForumFields
+              form={form}
+              set={f => {
+                setTouched(true)
+                setSaved(false)
+                setForm({ ...form(), ...f })
+              }}
+            />
+            <div class="account-form-actions">
+              <button class="btn pri" type="submit" disabled={busy()}>
+                {busy() ? "saving…" : "save settings"}
+              </button>
+              {saved() && <span class="where">saved; the relay updates the forum in a moment</span>}
+            </div>
+          </form>
+
+          <Members group={g} />
+          <Invites group={g} />
+          <LeaveForum group={g} />
+        </>
       )}
-
-      <form
-        class="account-form admin-settings-form"
-        onSubmit={async e => {
-          e.preventDefault()
-          setBusy(true)
-          setError("")
-          setSaved(false)
-          try {
-            await g.editMetadata(form)
-            setSaved(true)
-            setTouched(false)
-          } catch (err) {
-            setError(`Couldn't save: ${(err as Error).message ?? err}`)
-          } finally {
-            setBusy(false)
-          }
-        }}
-      >
-        <ForumFields
-          form={form}
-          set={f => {
-            setTouched(true)
-            setSaved(false)
-            setForm({ ...form, ...f })
-          }}
-        />
-        <div class="account-form-actions">
-          <button class="btn pri" type="submit" disabled={busy}>
-            {busy ? "saving…" : "save settings"}
-          </button>
-          {saved && <span class="where">saved; the relay updates the forum in a moment</span>}
-        </div>
-      </form>
-
-      <Members group={g} />
-      <Invites group={g} />
-      <LeaveForum group={g} />
     </div>
   )
 }
 
-function Members({ group: g }: { group: Group }) {
-  const [input, setInput] = useState("")
-  const [error, setError] = useState("")
-  const members = [...new Set([...g.admins.keys(), ...(g.members ?? [])])]
+function Members(props: { group: Group }) {
+  const g = props.group
+  const [input, setInput] = createSignal("")
+  const [error, setError] = createSignal("")
+  const members = () => {
+    useChanges()
+    return [...new Set([...g.admins.keys(), ...(g.members ?? [])])]
+  }
 
   return (
     <section class="panel account-section" aria-labelledby="members-heading">
       <h2 class="label" id="members-heading">
         members
       </h2>
-      {members.length ? (
+      {members().length ? (
         <ul class="member-list">
-          {members.map(pk => (
-            <li key={pk}>
-              <UserLink pubkey={pk} group={g} />
-              {g.isAdmin(pk) && <span class="flag a">{g.admins.get(pk)?.join(", ") || "admin"}</span>}
-              <span class="sp"></span>
-              {pk !== me && !g.isAdmin(pk) && (
-                <button
-                  class="inline-button"
-                  type="button"
-                  onClick={async () => {
-                    if (!confirm("Remove this member?")) return
-                    try {
-                      await g.removeUser(pk)
-                    } catch (err) {
-                      alert(`Couldn't remove: ${(err as Error).message}`)
-                    }
-                  }}
-                >
-                  remove
-                </button>
-              )}
-            </li>
-          ))}
+          <For each={members()}>
+            {pk => {
+              const isAdmin = () => {
+                useChanges()
+                return g.isAdmin(pk)
+              }
+              return (
+                <li>
+                  <UserLink pubkey={pk} group={g} />
+                  {isAdmin() && <span class="flag a">{g.admins.get(pk)?.join(", ") || "admin"}</span>}
+                  <span class="sp"></span>
+                  {pk !== me && !isAdmin() && (
+                    <button
+                      class="inline-button"
+                      type="button"
+                      onClick={async () => {
+                        if (!confirm("Remove this member?")) return
+                        try {
+                          await g.removeUser(pk)
+                        } catch (err) {
+                          alert(`Couldn't remove: ${(err as Error).message}`)
+                        }
+                      }}
+                    >
+                      remove
+                    </button>
+                  )}
+                </li>
+              )
+            }}
+          </For>
         </ul>
       ) : (
         <p class="hint">The relay doesn't publish the member list.</p>
@@ -141,7 +157,7 @@ function Members({ group: g }: { group: Group }) {
           e.preventDefault()
           setError("")
           try {
-            const v = input.trim()
+            const v = input().trim()
             let pk = v
             if (v.startsWith("npub1") || v.startsWith("nprofile1")) {
               const d = nip19.decode(v)
@@ -155,37 +171,40 @@ function Members({ group: g }: { group: Group }) {
           }
         }}
       >
-        <input class="inp mono wide" placeholder="npub1…" aria-label="Add a member" value={input} onInput={e => setInput((e.target as HTMLInputElement).value)} />
+        <input class="inp mono wide" placeholder="npub1…" aria-label="Add a member" value={input()} onInput={e => setInput((e.target as HTMLInputElement).value)} />
         <button class="btn" type="submit">
           add member
         </button>
       </form>
-      {error && (
+      {error() && (
         <p class="err" role="alert">
-          {error}
+          {error()}
         </p>
       )}
     </section>
   )
 }
 
-function Invites({ group: g }: { group: Group }) {
-  const [links, setLinks] = useState<string[]>([])
-  const [error, setError] = useState("")
+function Invites(props: { group: Group }) {
+  const g = props.group
+  const [links, setLinks] = createSignal<string[]>([])
+  const [error, setError] = createSignal("")
   return (
     <section class="panel account-section" aria-labelledby="invites-heading">
       <h2 class="label" id="invites-heading">
         invite links
       </h2>
       <p class="hint">Anyone with an invite link can join, even when the forum is closed.</p>
-      {links.map(l => (
-        <div class="row-inline" key={l}>
-          <input class="inp mono wide" readOnly value={l} aria-label="Invite link" />
-          <button class="btn" type="button" onClick={() => navigator.clipboard?.writeText(l)}>
-            copy
-          </button>
-        </div>
-      ))}
+      <For each={links()}>
+        {l => (
+          <div class="row-inline">
+            <input class="inp mono wide" readOnly value={l} aria-label="Invite link" />
+            <button class="btn" type="button" onClick={() => navigator.clipboard?.writeText(l)}>
+              copy
+            </button>
+          </div>
+        )}
+      </For>
       <div class="row-inline">
         <button
           class="btn"
@@ -194,7 +213,7 @@ function Invites({ group: g }: { group: Group }) {
             setError("")
             try {
               const code = await g.createInvite()
-              setLinks([...links, `${location.origin}/${g.naddr}?invite=${code}`])
+              setLinks([...links(), `${location.origin}/${g.naddr}?invite=${code}`])
             } catch (err) {
               setError(String((err as Error).message ?? err))
             }
@@ -203,16 +222,17 @@ function Invites({ group: g }: { group: Group }) {
           make an invite link
         </button>
       </div>
-      {error && (
+      {error() && (
         <p class="err" role="alert">
-          {error}
+          {error()}
         </p>
       )}
     </section>
   )
 }
 
-function LeaveForum({ group: g }: { group: Group }) {
+function LeaveForum(props: { group: Group }) {
+  const g = props.group
   return (
     <section class="panel account-section" aria-labelledby="leave-heading">
       <h2 class="label" id="leave-heading">

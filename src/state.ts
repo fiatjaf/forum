@@ -1,9 +1,9 @@
-import { useEffect, useState } from "preact/hooks"
+import { createSignal } from "solid-js"
 
 // A single "something changed" signal: views read what they need from the
 // in-memory models on each render, and re-render when this fires. Bursts
 // (a sync bringing hundreds of events) collapse into one frame.
-const subscribers = new Set<() => void>()
+const [changes, setChanges] = createSignal(0)
 let scheduled = false
 
 export function emit() {
@@ -11,18 +11,11 @@ export function emit() {
   scheduled = true
   requestAnimationFrame(() => {
     scheduled = false
-    for (const fn of subscribers) fn()
+    setChanges(x => x + 1)
   })
 }
 
+// Reading this inside a reactive expression subscribes it to model changes.
 export function useChanges(): number {
-  const [n, setN] = useState(0)
-  useEffect(() => {
-    const fn = () => setN(x => x + 1)
-    subscribers.add(fn)
-    return () => {
-      subscribers.delete(fn)
-    }
-  }, [])
-  return n
+  return changes()
 }

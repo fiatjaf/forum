@@ -1,6 +1,6 @@
 import type { NostrEvent } from "@nostr/tools/core"
 import * as nip19 from "@nostr/tools/nip19"
-import { useState } from "preact/hooks"
+import { For, Show, createMemo, createSignal } from "solid-js"
 import { KIND_COMMENT, allGroups, type Group } from "../groups"
 import {
   accountType,
@@ -16,6 +16,7 @@ import {
   useSecretKey
 } from "../nostr"
 import { linkGoogle } from "../pomegranate"
+import { useChanges } from "../state"
 import { ago, displayName, forgetUser, getUser, plural, snippet, titleOf } from "./common"
 
 function decodePubkey(code: string): string | null {
@@ -27,39 +28,51 @@ function decodePubkey(code: string): string | null {
   return null
 }
 
-export function Profile({ code }: { code: string }) {
-  const pubkey = decodePubkey(code)
+export function Profile(props: { code: string }) {
+  const pubkey = decodePubkey(props.code)
   if (!pubkey) return <p>That isn't a valid profile link.</p>
-  const user = getUser(pubkey)
   const isMe = pubkey === me
 
+  const user = createMemo(() => {
+    useChanges()
+    return getUser(pubkey)
+  })
+  const name = createMemo(() => {
+    useChanges()
+    return displayName(pubkey)
+  })
+
   // everything this person wrote in the forums this browser holds
-  const threads: [Group, NostrEvent][] = []
-  const comments: [Group, NostrEvent][] = []
-  for (const g of allGroups()) {
-    for (const t of g.threads.values()) if (t.pubkey === pubkey && !g.isDeleted(t)) threads.push([g, t])
-    for (const c of g.comments.values()) if (c.pubkey === pubkey && !g.isDeleted(c)) comments.push([g, c])
-  }
-  threads.sort((a, b) => b[1].created_at - a[1].created_at)
-  comments.sort((a, b) => b[1].created_at - a[1].created_at)
+  const activity = createMemo(() => {
+    useChanges()
+    const threads: [Group, NostrEvent][] = []
+    const comments: [Group, NostrEvent][] = []
+    for (const g of allGroups()) {
+      for (const t of g.threads.values()) if (t.pubkey === pubkey && !g.isDeleted(t)) threads.push([g, t])
+      for (const c of g.comments.values()) if (c.pubkey === pubkey && !g.isDeleted(c)) comments.push([g, c])
+    }
+    threads.sort((a, b) => b[1].created_at - a[1].created_at)
+    comments.sort((a, b) => b[1].created_at - a[1].created_at)
+    return { threads, comments }
+  })
 
   return (
     <div class={isMe ? "account-page" : "profile-page"}>
       <div class="pagehead">
         <h1 class="pt">
-          <span class="p">~/</span>users/{displayName(pubkey)}
+          <span class="p">~/</span>users/{name()}
         </h1>
       </div>
       <div class="meta">
         <span class="mono npub">{nip19.npubEncode(pubkey)}</span>
-        {user.metadata.nip05 && (
+        {user().metadata.nip05 && (
           <>
             <span>·</span>
-            <span>{user.metadata.nip05}</span>
+            <span>{user().metadata.nip05}</span>
           </>
         )}
       </div>
-      {user.metadata.about && <p class="profile-about">{user.metadata.about}</p>}
+      {user().metadata.about && <p class="profile-about">{user().metadata.about}</p>}
 
       {isMe && <Account />}
 
@@ -67,25 +80,37 @@ export function Profile({ code }: { code: string }) {
         <span class="label">threads</span>
         <span class="label">newest first</span>
       </div>
-      {threads.length ? (
+      {activity().threads.length ? (
         <ol class="rl">
-          {threads.slice(0, 50).map(([g, t]) => (
-            <li class="r" key={t.id}>
-              <span class="ty t">thread</span>
-              <div class="search-result-body">
-                <a class="tt" href={`/${g.naddr}/${t.id}`}>
-                  {titleOf(t)}
-                </a>
-                <div class="meta">
-                  <span>{g.name}</span>
-                  <span>·</span>
-                  <span>{ago(t.created_at)}</span>
-                  <span>·</span>
-                  <a href={`/${g.naddr}/${t.id}#comments`}>{plural(g.commentCount(t.id), "comment")}</a>
-                </div>
-              </div>
-            </li>
-          ))}
+          <For each={activity().threads.slice(0, 50)}>
+            {([g, t]) => {
+              const count = () => {
+                useChanges()
+                return g.commentCount(t.id)
+              }
+              const forum = () => {
+                useChanges()
+                return g.name
+              }
+              return (
+                <li class="r">
+                  <span class="ty t">thread</span>
+                  <div class="search-result-body">
+                    <a class="tt" href={`/${g.naddr}/${t.id}`}>
+                      {titleOf(t)}
+                    </a>
+                    <div class="meta">
+                      <span>{forum()}</span>
+                      <span>·</span>
+                      <span>{ago(t.created_at)}</span>
+                      <span>·</span>
+                      <a href={`/${g.naddr}/${t.id}#comments`}>{plural(count(), "comment")}</a>
+                    </div>
+                  </div>
+                </li>
+              )
+            }}
+          </For>
         </ol>
       ) : (
         <p class="hint">No threads here yet.</p>
@@ -95,28 +120,30 @@ export function Profile({ code }: { code: string }) {
         <span class="label">comments</span>
         <span class="label">newest first</span>
       </div>
-      {comments.length ? (
+      {activity().comments.length ? (
         <ol class="rl">
-          {comments.slice(0, 50).map(([g, c]) => {
-            const rootId = c.tags.find(t => t[0] === "E")?.[1]
-            const root = rootId ? g.threads.get(rootId) : undefined
-            return (
-              <li class="r" key={c.id}>
-                <span class="ty">comment</span>
-                <div class="search-result-body">
-                  <div class="ctx">
-                    in <a href={`/${g.naddr}/${rootId}`}>{root ? titleOf(root) : "a thread"}</a> · {g.name}
+          <For each={activity().comments.slice(0, 50)}>
+            {([g, c]) => {
+              const rootId = c.tags.find(t => t[0] === "E")?.[1]
+              const root = rootId ? g.threads.get(rootId) : undefined
+              return (
+                <li class="r">
+                  <span class="ty">comment</span>
+                  <div class="search-result-body">
+                    <div class="ctx">
+                      in <a href={`/${g.naddr}/${rootId}`}>{root ? titleOf(root) : "a thread"}</a> · {g.name}
+                    </div>
+                    {c.kind === KIND_COMMENT && <div class="snip">{snippet(c.content)}</div>}
+                    <div class="meta">
+                      <span>{ago(c.created_at)}</span>
+                      <span>·</span>
+                      <a href={`/${g.naddr}/${rootId}#c${c.id}`}>open comment ›</a>
+                    </div>
                   </div>
-                  {c.kind === KIND_COMMENT && <div class="snip">{snippet(c.content)}</div>}
-                  <div class="meta">
-                    <span>{ago(c.created_at)}</span>
-                    <span>·</span>
-                    <a href={`/${g.naddr}/${rootId}#c${c.id}`}>open comment ›</a>
-                  </div>
-                </div>
-              </li>
-            )
-          })}
+                </li>
+              )
+            }}
+          </For>
         </ol>
       ) : (
         <p class="hint">No comments here yet.</p>
@@ -137,10 +164,9 @@ function Account() {
 }
 
 function NameCard() {
-  const current = displayName(me)
-  const [name, setName] = useState(current)
-  const [busy, setBusy] = useState(false)
-  const [msg, setMsg] = useState("")
+  const [name, setName] = createSignal(displayName(me))
+  const [busy, setBusy] = createSignal(false)
+  const [msg, setMsg] = createSignal("")
   const pending = pendingName()
   return (
     <section class="card" aria-labelledby="name-heading">
@@ -159,7 +185,7 @@ function NameCard() {
             setBusy(true)
             setMsg("")
             try {
-              await setProfileName(name.trim())
+              await setProfileName(name().trim())
               forgetUser(me)
               setMsg("saved")
             } catch (err) {
@@ -171,13 +197,13 @@ function NameCard() {
         >
           <div class="field">
             <label for="name">name</label>
-            <input id="name" class="inp" value={name} required maxLength={60} onInput={e => setName((e.target as HTMLInputElement).value)} />
+            <input id="name" class="inp" value={name()} required maxLength={60} onInput={e => setName((e.target as HTMLInputElement).value)} />
           </div>
           <div class="row">
-            <button class="btn pri" type="submit" disabled={busy}>
-              {busy ? "saving…" : "save name"}
+            <button class="btn pri" type="submit" disabled={busy()}>
+              {busy() ? "saving…" : "save name"}
             </button>
-            {msg && <span class="where">{msg}</span>}
+            {msg() && <span class="where">{msg()}</span>}
           </div>
         </form>
       </div>
@@ -186,7 +212,7 @@ function NameCard() {
 }
 
 function AppearanceCard() {
-  const [theme, setTheme] = useState(() => localStorage.getItem("theme") || "auto")
+  const [theme, setTheme] = createSignal(localStorage.getItem("theme") || "auto")
   const pick = (t: string) => {
     setTheme(t)
     document.documentElement.className = "sq " + t
@@ -202,12 +228,14 @@ function AppearanceCard() {
       </div>
       <div class="card-b">
         <fieldset class="seg" aria-label="Theme">
-          {(["auto", "light", "dark"] as const).map(t => (
-            <label key={t}>
-              <input type="radio" name="theme" value={t} checked={theme === t} onChange={() => pick(t)} />
-              <span>{t === "auto" ? "system" : t}</span>
-            </label>
-          ))}
+          <For each={["auto", "light", "dark"] as const}>
+            {t => (
+              <label>
+                <input type="radio" name="theme" value={t} checked={theme() === t} onChange={() => pick(t)} />
+                <span>{t === "auto" ? "system" : t}</span>
+              </label>
+            )}
+          </For>
         </fieldset>
       </div>
     </section>
@@ -215,10 +243,10 @@ function AppearanceCard() {
 }
 
 function GoogleCard() {
-  const link = pomegranateLink()
-  const [log, setLog] = useState<string[]>([])
-  const [error, setError] = useState("")
-  const [busy, setBusy] = useState(false)
+  const [link, setLink] = createSignal(pomegranateLink())
+  const [log, setLog] = createSignal<string[]>([])
+  const [error, setError] = createSignal("")
+  const [busy, setBusy] = createSignal(false)
   const sk = localSecretKey()
 
   const run = async () => {
@@ -228,6 +256,7 @@ function GoogleCard() {
     try {
       const result = await linkGoogle(sk, m => setLog(l => [...l, m]))
       setPomegranateLink({ token: result.token, central: result.central, email: result.email })
+      setLink(pomegranateLink())
       setLog(l => [...l, "done"])
     } catch (err) {
       setError(String((err as Error).message ?? err))
@@ -249,26 +278,26 @@ function GoogleCard() {
         </p>
       </div>
       <div class="card-b">
-        {link ? (
+        {link() ? (
           <div class="notice" role="status">
             <span class="notice-title">linked</span>
             <span>
-              {link.email || "a Google account"} · {new URL(link.central).host}
+              {link()!.email || "a Google account"} · {new URL(link()!.central).host}
             </span>
           </div>
         ) : sk ? (
           <div class="row">
-            <button class="btn pri" type="button" disabled={busy} onClick={run}>
-              {busy ? "linking…" : "link google account"}
+            <button class="btn pri" type="button" disabled={busy()} onClick={run}>
+              {busy() ? "linking…" : "link google account"}
             </button>
           </div>
         ) : (
           <p class="help">You're signing with a remote signer, so there's no key here to link.</p>
         )}
-        {log.length > 0 && <pre class="cheat link-log">{log.join("\n")}</pre>}
-        {error && (
+        {log().length > 0 && <pre class="cheat link-log">{log().join("\n")}</pre>}
+        {error() && (
           <p class="err" role="alert">
-            {error}
+            {error()}
           </p>
         )}
       </div>
@@ -277,10 +306,10 @@ function GoogleCard() {
 }
 
 function KeysCard() {
-  const [shown, setShown] = useState(false)
-  const [input, setInput] = useState("")
-  const [error, setError] = useState("")
-  const [busy, setBusy] = useState(false)
+  const [shown, setShown] = createSignal(false)
+  const [input, setInput] = createSignal("")
+  const [error, setError] = createSignal("")
+  const [busy, setBusy] = createSignal(false)
   const secret = nsec()
 
   return (
@@ -297,9 +326,9 @@ function KeysCard() {
         {secret && (
           <div class="feeds">
             <span>secret key</span>
-            <input class="inp wide mono" type={(shown ? "text" : "password") as "text"} readOnly value={secret} aria-label="Secret key" />
-            <button class="btn" type="button" onClick={() => setShown(!shown)}>
-              {shown ? "hide" : "show"}
+            <input class="inp wide mono" type={(shown() ? "text" : "password") as "text"} readOnly value={secret} aria-label="Secret key" />
+            <button class="btn" type="button" onClick={() => setShown(!shown())}>
+              {shown() ? "hide" : "show"}
             </button>
           </div>
         )}
@@ -319,7 +348,7 @@ function KeysCard() {
               setError("")
               setBusy(true)
               try {
-                const v = input.trim()
+                const v = input().trim()
                 if (!confirm("Switch identity? The current key will be forgotten by this browser.")) return
                 if (v.startsWith("bunker://") || v.includes("@")) await useBunker(v)
                 else useSecretKey(v)
@@ -330,8 +359,14 @@ function KeysCard() {
               }
             }}
           >
-            <input class="inp wide mono" placeholder="nsec1… or bunker://…" aria-label="Secret key or bunker" value={input} onInput={e => setInput((e.target as HTMLInputElement).value)} />
-            <button class="btn" type="submit" disabled={busy}>
+            <input
+              class="inp wide mono"
+              placeholder="nsec1… or bunker://…"
+              aria-label="Secret key or bunker"
+              value={input()}
+              onInput={e => setInput((e.target as HTMLInputElement).value)}
+            />
+            <button class="btn" type="submit" disabled={busy()}>
               use
             </button>
           </form>
@@ -339,7 +374,7 @@ function KeysCard() {
             <button
               class="btn"
               type="button"
-              disabled={busy}
+              disabled={busy()}
               onClick={async () => {
                 if (!confirm("Log in with Google? The current key will be forgotten by this browser.")) return
                 setBusy(true)
@@ -368,9 +403,9 @@ function KeysCard() {
               start over with a new key
             </button>
           </div>
-          {error && (
+          {error() && (
             <p class="err" role="alert">
-              {error}
+              {error()}
             </p>
           )}
         </div>

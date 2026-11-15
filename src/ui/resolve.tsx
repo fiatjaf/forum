@@ -1,7 +1,7 @@
 import { pool } from "@nostr/gadgets/global"
 import type { NostrEvent } from "@nostr/tools/core"
 import * as nip19 from "@nostr/tools/nip19"
-import { useEffect, useState } from "preact/hooks"
+import { createSignal, onMount } from "solid-js"
 import { KIND_COMMENT, KIND_THREAD, getGroup, normalizeRelay, relaySelf } from "../groups"
 import { authRelays, onauth } from "../nostr"
 import { query, save } from "../store"
@@ -44,14 +44,14 @@ async function resolve(code: string): Promise<string> {
   return `/${g.naddr}/${root}#c${evt.id}`
 }
 
-export function Resolve({ code }: { code: string }) {
-  const [error, setError] = useState("")
-  useEffect(() => {
-    resolve(code).then(
+export function Resolve(props: { code: string }) {
+  const [error, setError] = createSignal("")
+  onMount(() => {
+    resolve(props.code).then(
       path => navigate(path, true),
       err => setError(String(err?.message ?? err))
     )
-  }, [code])
+  })
   return (
     <div>
       <div class="pagehead">
@@ -59,9 +59,9 @@ export function Resolve({ code }: { code: string }) {
           <span class="p">~/</span>opening…
         </h1>
       </div>
-      {error ? (
+      {error() ? (
         <p class="err" role="alert">
-          {error}
+          {error()}
         </p>
       ) : (
         <p class="hint">Looking up the thread…</p>

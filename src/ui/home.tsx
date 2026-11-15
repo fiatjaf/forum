@@ -1,25 +1,37 @@
-import { useEffect, useState } from "preact/hooks"
+import { For, Show, createEffect, createMemo, createSignal, on } from "solid-js"
 import { getGroup, myGroups, myGroupsLoaded, normalizeRelay, relaySelf, type Group } from "../groups"
-import { emit } from "../state"
+import { emit, useChanges } from "../state"
 import { ago, navigate, plural } from "./common"
 
 export function Home() {
-  const groups = myGroups.map(item => getGroup({ id: item.groupId, relay: normalizeRelay(item.relay) }))
+  const groups = createMemo(() => {
+    useChanges()
+    return myGroups.map(item => getGroup({ id: item.groupId, relay: normalizeRelay(item.relay) }))
+  })
 
   // a 10009 entry doesn't say what the relay's key is, and links need it
-  useEffect(() => {
-    for (const g of groups) {
-      if (g.relayPubkey) continue
-      relaySelf(g.relay)
-        .then(pk => {
-          if (!g.relayPubkey) g.relayPubkey = pk
-          emit()
-        })
-        .catch(() => {})
-    }
-  }, [groups.length])
+  createEffect(
+    on(
+      () => groups().length,
+      () => {
+        for (const g of groups()) {
+          if (g.relayPubkey) continue
+          relaySelf(g.relay)
+            .then(pk => {
+              if (!g.relayPubkey) g.relayPubkey = pk
+              emit()
+            })
+            .catch(() => {})
+        }
+      }
+    )
+  )
 
-  const sorted = [...groups].sort((a, b) => lastActivity(b) - lastActivity(a))
+  const sorted = createMemo(() => [...groups()].sort((a, b) => lastActivity(b) - lastActivity(a)))
+  const anyForums = () => {
+    useChanges()
+    return myGroupsLoaded
+  }
 
   return (
     <div class="front-page">
@@ -29,13 +41,11 @@ export function Home() {
         </h1>
       </div>
 
-      {sorted.length ? (
+      {sorted().length ? (
         <ol class="list">
-          {sorted.map(g => (
-            <GroupRow key={g.relay + g.id} group={g} />
-          ))}
+          <For each={sorted()}>{g => <GroupRow group={g} />}</For>
         </ol>
-      ) : myGroupsLoaded ? (
+      ) : anyForums() ? (
         <p>
           You're not in any forum yet. <a href="/new">Start one</a>, or open one below.
         </p>
@@ -54,54 +64,68 @@ function lastActivity(g: Group): number {
   return last
 }
 
-function GroupRow({ group: g }: { group: Group }) {
-  const threads = g.visibleThreads().length
-  const last = lastActivity(g)
+function GroupRow(props: { group: Group }) {
+  const g = props.group
+  const info = createMemo(() => {
+    useChanges()
+    return {
+      threads: g.visibleThreads().length,
+      last: lastActivity(g),
+      name: g.name,
+      href: g.naddr ? `/${g.naddr}` : undefined,
+      isPrivate: g.metadata?.isPrivate,
+      isClosed: g.metadata?.isClosed,
+      about: g.metadata?.about,
+      picture: g.metadata?.picture,
+      syncError: g.syncError
+    }
+  })
   const host = g.relay.replace(/^wss?:\/\//, "").replace(/\/$/, "")
-  const href = g.naddr ? `/${g.naddr}` : undefined
   return (
     <li class="row">
       <div class="vc">
-        {g.metadata?.picture ? <img class="forum-pic" src={g.metadata.picture} alt="" /> : <span class="forum-pic none" aria-hidden="true"></span>}
+        <Show when={info().picture} fallback={<span class="forum-pic none" aria-hidden="true"></span>}>
+          {picture => <img class="forum-pic" src={picture()} alt="" />}
+        </Show>
       </div>
       <div class="thread-cell">
-        <a class="tt" href={href}>
-          {g.name}
+        <a class="tt" href={info().href}>
+          {info().name}
         </a>
-        {g.metadata?.isPrivate && <span class="flag">private</span>}
-        {g.metadata?.isClosed && <span class="flag">closed</span>}
+        {info().isPrivate && <span class="flag">private</span>}
+        {info().isClosed && <span class="flag">closed</span>}
         <div class="meta">
           <span>{host}</span>
           <span>·</span>
-          <span>{plural(threads, "thread")}</span>
-          {g.metadata?.about && (
+          <span>{plural(info().threads, "thread")}</span>
+          {info().about && (
             <>
               <span>·</span>
-              <span class="about">{g.metadata.about}</span>
+              <span class="about">{info().about}</span>
             </>
           )}
-          {g.syncError && (
+          {info().syncError && (
             <>
               <span>·</span>
-              <span class="gone">{g.syncError}</span>
+              <span class="gone">{info().syncError}</span>
             </>
           )}
         </div>
       </div>
-      <span class="act">{last ? ago(last) : ""}</span>
+      <span class="act">{info().last ? ago(info().last) : ""}</span>
     </li>
   )
 }
 
 function OpenForum() {
-  const [value, setValue] = useState("")
-  const [error, setError] = useState("")
+  const [value, setValue] = createSignal("")
+  const [error, setError] = createSignal("")
   return (
     <form
       class="open-forum"
       onSubmit={e => {
         e.preventDefault()
-        const code = value.trim().replace(/^nostr:/, "").replace(/^https?:\/\/[^/]+\//, "")
+        const code = value().trim().replace(/^nostr:/, "").replace(/^https?:\/\/[^/]+\//, "")
         if (/^(naddr1|nevent1)/.test(code)) navigate("/" + code)
         else setError("Paste a forum link (naddr1…) or a thread link (nevent1…).")
       }}
@@ -109,15 +133,22 @@ function OpenForum() {
       <div class="field">
         <label for="open-forum">open a forum or thread</label>
         <div class="row-inline">
-          <input id="open-forum" class="inp mono wide" value={value} onInput={e => setValue((e.target as HTMLInputElement).value)} placeholder="naddr1… or nevent1…" spellcheck={false} />
+          <input
+            id="open-forum"
+            class="inp mono wide"
+            value={value()}
+            onInput={e => setValue((e.target as HTMLInputElement).value)}
+            placeholder="naddr1… or nevent1…"
+            spellcheck={false}
+          />
           <button class="btn" type="submit">
             open
           </button>
         </div>
       </div>
-      {error && (
+      {error() && (
         <p class="err" role="alert">
-          {error}
+          {error()}
         </p>
       )}
     </form>

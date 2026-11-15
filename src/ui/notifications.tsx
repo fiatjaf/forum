@@ -1,7 +1,8 @@
 import type { NostrEvent } from "@nostr/tools/core"
-import { useEffect, useState } from "preact/hooks"
+import { For, createEffect, createMemo, createSignal, on } from "solid-js"
 import { allGroups, type Group } from "../groups"
 import { me } from "../nostr"
+import { useChanges } from "../state"
 import { ago, displayName, snippet, titleOf } from "./common"
 
 type Note = { g: Group; evt: NostrEvent; kind: "reply" | "comment" | "mention"; root?: NostrEvent }
@@ -37,20 +38,28 @@ export function unreadNotifications(): number {
 }
 
 export function Notifications() {
-  const [seen] = useState(seenUntil)
-  const notes = collect()
+  const [seen] = createSignal<number>(seenUntil())
+  const notes = createMemo(() => {
+    useChanges()
+    return collect()
+  })
 
-  useEffect(() => {
-    const newest = notes[0]?.evt.created_at ?? 0
-    if (newest > seenUntil()) {
-      try {
-        localStorage.setItem("notificationsSeen", String(newest))
-      } catch {}
-    }
-  }, [notes[0]?.evt.id])
+  createEffect(
+    on(
+      () => notes()[0]?.evt.id,
+      () => {
+        const newest = notes()[0]?.evt.created_at ?? 0
+        if (newest > seenUntil()) {
+          try {
+            localStorage.setItem("notificationsSeen", String(newest))
+          } catch {}
+        }
+      }
+    )
+  )
 
-  const unread = notes.filter(n => n.evt.created_at > seen)
-  const earlier = notes.filter(n => n.evt.created_at <= seen).slice(0, 100)
+  const unread = createMemo(() => notes().filter(n => n.evt.created_at > seen()))
+  const earlier = createMemo(() => notes().filter(n => n.evt.created_at <= seen()).slice(0, 100))
 
   return (
     <div class="notifications-page">
@@ -59,43 +68,44 @@ export function Notifications() {
           <span class="p">~/</span>notifications
         </h1>
       </div>
-      {unread.length > 0 && (
+      {unread().length > 0 && (
         <>
-          <div class="label section-label">unread · {unread.length}</div>
+          <div class="label section-label">unread · {unread().length}</div>
           <ol class="nl">
-            {unread.map(n => (
-              <Item key={n.evt.id} n={n} unread />
-            ))}
+            <For each={unread()}>{n => <Item n={n} unread />}</For>
           </ol>
         </>
       )}
-      {earlier.length > 0 && (
+      {earlier().length > 0 && (
         <>
           <div class="label section-label earlier-label">earlier</div>
           <ol class="nl">
-            {earlier.map(n => (
-              <Item key={n.evt.id} n={n} />
-            ))}
+            <For each={earlier()}>{n => <Item n={n} />}</For>
           </ol>
         </>
       )}
-      {!notes.length && <p>No notifications yet.</p>}
+      {!notes().length && <p>No notifications yet.</p>}
     </div>
   )
 }
 
-function Item({ n, unread }: { n: Note; unread?: boolean }) {
+function Item(props: { n: Note; unread?: boolean }) {
+  const n = props.n
   const label = n.kind
   const title = n.root ? titleOf(n.root) : "a thread"
   const rootId = n.evt.tags.find(t => t[0] === "E")?.[1]
+  const who = createMemo(() => {
+    useChanges()
+    return displayName(n.evt.pubkey, [n.g.relay])
+  })
   return (
-    <li class={"n" + (unread ? " un" : "")}>
-      <span class={"dot" + (unread ? "" : " dot-empty")} aria-label={unread ? "unread" : undefined} aria-hidden={!unread}></span>
+    <li class={"n" + (props.unread ? " un" : "")}>
+      <span class={"dot" + (props.unread ? "" : " dot-empty")} aria-label={props.unread ? "unread" : undefined} aria-hidden={!props.unread}></span>
       <span class="kind">{label}</span>
       <div class="n-body">
         <a class="what" href={`/${n.g.naddr}/${rootId}#c${n.evt.id}`}>
           <span class="who">
-            <span class="u">{displayName(n.evt.pubkey, [n.g.relay])}</span>
+            <span class="u">{who()}</span>
             <span class="kind-inline">{label}</span>
           </span>
           <span class="action">

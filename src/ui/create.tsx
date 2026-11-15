@@ -1,4 +1,4 @@
-import { useState } from "preact/hooks"
+import { createSignal } from "solid-js"
 import { createGroup } from "../groups"
 import { navigate } from "./common"
 
@@ -11,7 +11,8 @@ export type ForumForm = {
 }
 
 // The fields both the create page and the settings page edit.
-export function ForumFields({ form, set }: { form: ForumForm; set: (f: Partial<ForumForm>) => void }) {
+export function ForumFields(props: { form: () => ForumForm; set: (f: Partial<ForumForm>) => void }) {
+  const form = () => props.form()
   return (
     <>
       <section class="panel account-section" aria-labelledby="forum-name-heading">
@@ -20,19 +21,26 @@ export function ForumFields({ form, set }: { form: ForumForm; set: (f: Partial<F
         </h2>
         <div class="field">
           <label for="forum-name">name</label>
-          <input id="forum-name" class="inp" value={form.name} maxLength={80} required onInput={e => set({ name: (e.target as HTMLInputElement).value })} />
+          <input id="forum-name" class="inp" value={form().name} maxLength={80} required onInput={e => props.set({ name: (e.target as HTMLInputElement).value })} />
         </div>
         <div class="field">
           <label for="forum-about">
             about <span>(optional)</span>
           </label>
-          <textarea id="forum-about" rows={3} value={form.about} onInput={e => set({ about: (e.target as HTMLTextAreaElement).value })} />
+          <textarea id="forum-about" rows={3} value={form().about} onInput={e => props.set({ about: (e.target as HTMLTextAreaElement).value })} />
         </div>
         <div class="field">
           <label for="forum-picture">
             picture url <span>(optional)</span>
           </label>
-          <input id="forum-picture" class="inp mono" type="url" value={form.picture} placeholder="https://" onInput={e => set({ picture: (e.target as HTMLInputElement).value })} />
+          <input
+            id="forum-picture"
+            class="inp mono"
+            type="url"
+            value={form().picture}
+            placeholder="https://"
+            onInput={e => props.set({ picture: (e.target as HTMLInputElement).value })}
+          />
         </div>
       </section>
 
@@ -42,16 +50,16 @@ export function ForumFields({ form, set }: { form: ForumForm; set: (f: Partial<F
         </h2>
         <fieldset class="seg" aria-label="Visibility">
           <label>
-            <input type="radio" name="visibility" checked={!form.isPrivate} onChange={() => set({ isPrivate: false })} />
+            <input type="radio" name="visibility" checked={!form().isPrivate} onChange={() => props.set({ isPrivate: false })} />
             <span>public</span>
           </label>
           <label>
-            <input type="radio" name="visibility" checked={form.isPrivate} onChange={() => set({ isPrivate: true })} />
+            <input type="radio" name="visibility" checked={form().isPrivate} onChange={() => props.set({ isPrivate: true })} />
             <span>private</span>
           </label>
         </fieldset>
         <p class="hint">
-          {form.isPrivate ? "Only members can read threads and comments." : "Anyone with the link can read threads and comments."}
+          {form().isPrivate ? "Only members can read threads and comments." : "Anyone with the link can read threads and comments."}
         </p>
       </section>
 
@@ -61,16 +69,16 @@ export function ForumFields({ form, set }: { form: ForumForm; set: (f: Partial<F
         </h2>
         <fieldset class="seg" aria-label="Membership">
           <label>
-            <input type="radio" name="membership" checked={!form.isClosed} onChange={() => set({ isClosed: false })} />
+            <input type="radio" name="membership" checked={!form().isClosed} onChange={() => props.set({ isClosed: false })} />
             <span>open</span>
           </label>
           <label>
-            <input type="radio" name="membership" checked={form.isClosed} onChange={() => set({ isClosed: true })} />
+            <input type="radio" name="membership" checked={form().isClosed} onChange={() => props.set({ isClosed: true })} />
             <span>closed</span>
           </label>
         </fieldset>
         <p class="hint">
-          {form.isClosed
+          {form().isClosed
             ? "People join with an invite link or when an admin adds them."
             : "Anyone can join by asking; the relay lets them in."}
         </p>
@@ -80,10 +88,10 @@ export function ForumFields({ form, set }: { form: ForumForm; set: (f: Partial<F
 }
 
 export function CreateForum() {
-  const [relay, setRelay] = useState("chat.wisp.talk")
-  const [form, setForm] = useState<ForumForm>({ name: "", about: "", picture: "", isPrivate: false, isClosed: false })
-  const [error, setError] = useState("")
-  const [busy, setBusy] = useState(false)
+  const [relay, setRelay] = createSignal("chat.wisp.talk")
+  const [form, setForm] = createSignal<ForumForm>({ name: "", about: "", picture: "", isPrivate: false, isClosed: false })
+  const [error, setError] = createSignal("")
+  const [busy, setBusy] = createSignal(false)
 
   return (
     <div class="admin-page">
@@ -93,9 +101,9 @@ export function CreateForum() {
         </h1>
       </div>
 
-      {error && (
+      {error() && (
         <p class="err" role="alert">
-          {error}
+          {error()}
         </p>
       )}
 
@@ -106,7 +114,7 @@ export function CreateForum() {
           setBusy(true)
           setError("")
           try {
-            const g = await createGroup({ relay, ...form })
+            const g = await createGroup({ relay: relay(), ...form() })
             navigate(`/${g.naddr}`)
           } catch (err) {
             setError(`Couldn't create the forum: ${(err as Error).message ?? err}`)
@@ -121,16 +129,16 @@ export function CreateForum() {
           </h2>
           <div class="field">
             <label for="forum-relay">NIP-29 relay</label>
-            <input id="forum-relay" class="inp mono" value={relay} required spellcheck={false} onInput={e => setRelay((e.target as HTMLInputElement).value)} />
+            <input id="forum-relay" class="inp mono" value={relay()} required spellcheck={false} onInput={e => setRelay((e.target as HTMLInputElement).value)} />
           </div>
           <p class="hint">The relay hosts the forum and enforces who can read and write. It must support NIP-29 groups.</p>
         </section>
 
-        <ForumFields form={form} set={f => setForm({ ...form, ...f })} />
+        <ForumFields form={form} set={f => setForm({ ...form(), ...f })} />
 
         <div class="account-form-actions">
-          <button class="btn pri" type="submit" disabled={busy}>
-            {busy ? "creating…" : "create forum"}
+          <button class="btn pri" type="submit" disabled={busy()}>
+            {busy() ? "creating…" : "create forum"}
           </button>
           <a class="btn ghost" href="/">
             cancel
