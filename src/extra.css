@@ -1,0 +1,135 @@
+/* Pieces soliloquy doesn't have: the forum list, membership notices and a few
+   inline forms. Built from the same tokens as style.css. */
+
+.inline-button {
+	height: auto;
+	padding: 0;
+	border: 0;
+	background: none;
+	color: inherit;
+	font: inherit;
+	cursor: pointer;
+}
+
+.inline-button:hover {
+	color: var(--accent);
+}
+
+.forum-pic {
+	display: block;
+	width: 28px;
+	height: 28px;
+	border-radius: 6px;
+	object-fit: cover;
+	background: var(--panel);
+}
+
+.forum-pic.none {
+	border: 1px solid var(--line);
+}
+
+.list .flag {
+	margin-left: 8px;
+	vertical-align: 2px;
+}
+
+.meta .about {
+	overflow: hidden;
+	max-width: 48ch;
+	text-overflow: ellipsis;
+	white-space: nowrap;
+}
+
+.forum-about,
+.profile-about {
+	max-width: 72ch;
+	margin: -4px 0 16px;
+	color: var(--muted);
+}
+
+.row-inline {
+	display: flex;
+	gap: 8px;
+	align-items: center;
+	margin-top: 8px;
+}
+
+.row-inline .inp {
+	flex: 1;
+	min-width: 0;
+}
+
+.open-forum {
+	margin-top: 32px;
+	padding-top: 20px;
+	border-top: 1px solid var(--line2);
+}
+
+.notice.welcome,
+.notice.membership {
+	display: flex;
+	flex-wrap: wrap;
+	gap: 6px 10px;
+	align-items: center;
+	margin: 0 0 18px;
+}
+
+.notice.membership .sp {
+	flex: 1;
+}
+
+.notice .err {
+	flex-basis: 100%;
+}
+
+.member-list {
+	margin: 0 0 8px;
+	padding: 0;
+	list-style: none;
+}
+
+.member-list li {
+	display: flex;
+	gap: 8px;
+	align-items: center;
+	padding: 6px 0;
+	border-bottom: 1px solid var(--line2);
+}
+
+.member-list .sp {
+	flex: 1;
+}
+
+.npub {
+	overflow-wrap: anywhere;
+}
+
+.account-stack {
+	margin: 20px 0 28px;
+}
+
+.link-log {
+	margin-top: 12px;
+	white-space: pre-wrap;
+}
+
+.c.target > .ch {
+	background: var(--soft);
+	box-shadow: 0 0 0 4px var(--soft);
+}
+
+.vote:disabled {
+	opacity: 0.5;
+}
+
+.account-page .sub > form.row-inline {
+	flex-direction: row;
+	align-items: center;
+}
+
+.top .me {
+	overflow: hidden;
+	max-width: 18ch;
+	text-overflow: ellipsis;
+	white-space: nowrap;
+}
