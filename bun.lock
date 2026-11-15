@@ -5,6 +5,7 @@
     "": {
       "name": "forum",
       "dependencies": {
+        "@djot/djot": "^0.3.2",
         "@fiatjaf/promenade-trusted-dealer": "npm:@jsr/fiatjaf__promenade-trusted-dealer@^0.4.3",
         "@noble/hashes": "^2.4.0",
         "@nostr/gadgets": "npm:@jsr/nostr__gadgets@^0.21.1",
@@ -22,6 +23,8 @@
     },
   },
   "packages": {
+    "@djot/djot": ["@djot/djot@0.3.2", "", { "bin": { "djot": "lib/cli.js" } }, "sha512-joMKR24B8rxueyFiJbpZAqEiypjvOyzTxzkhyr0q5mM/sUBaOD3unna/9IxtOotFugViyYlkIRaiXg3xM//zxg=="],
+
     "@esbuild/aix-ppc64": ["@esbuild/aix-ppc64@0.25.12", "", { "os": "aix", "cpu": "ppc64" }, "sha512-Hhmwd6CInZ3dwpuGTF8fJG6yoWmsToE+vYgD4nytZVxcu1ulHpUQRAB1UJ8+N1Am3Mz4+xOByoQoSZf4D+CpkA=="],
 
     "@esbuild/android-arm": ["@esbuild/android-arm@0.25.12", "", { "os": "android", "cpu": "arm" }, "sha512-VJ+sKvNA/GE7Ccacc9Cha7bpS8nyzVv0jdVgwNDaR4gDMC/2TTRc33Ip8qrNYUcpkOHUT5OZ0bUcNNVZQ9RLlg=="],

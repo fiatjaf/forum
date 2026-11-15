@@ -2,7 +2,7 @@ import { useState } from "preact/hooks"
 import { inMyGroups, addToMyGroups, type Group } from "../groups"
 import { me } from "../nostr"
 import { isLive, rejoined } from "../sync"
-import { UserLink, VoteButton, ago, lastRead, plural, titleOf } from "./common"
+import { UserLink, VoteButton, ago, lastRead, linkOf, plural, titleOf } from "./common"
 
 const PER_PAGE = 30
 
@@ -38,6 +38,7 @@ export function Forum({ group: g }: { group: Group }) {
             const voted = g.myVotes(t.id).length > 0
             const comments = g.threadComments(t.id).filter(c => !g.isDeleted(c))
             const read = lastRead(t.id)
+            const link = linkOf(t)
             const unopened = read === undefined && t.pubkey !== me
             const fresh = read === undefined ? 0 : comments.filter(c => c.created_at > read && c.pubkey !== me).length
             return (
@@ -48,9 +49,18 @@ export function Forum({ group: g }: { group: Group }) {
                 </div>
                 <div class="thread-cell">
                   {unopened && <span class="dot unread-dot" aria-label="unread"></span>}
-                  <a class="tt" href={`${base}/${t.id}`}>
-                    {titleOf(t)}
-                  </a>
+                  {link ? (
+                    <>
+                      <a class="tt" href={link.url} rel="nofollow noopener" target="_blank">
+                        {titleOf(t)}
+                      </a>{" "}
+                      <span class="dom">({link.domain})</span>
+                    </>
+                  ) : (
+                    <a class="tt" href={`${base}/${t.id}`}>
+                      {titleOf(t)}
+                    </a>
+                  )}
                   <div class="meta">
                     <UserLink pubkey={t.pubkey} group={g} />
                     <span>·</span>

@@ -10,6 +10,7 @@
     "preview": "vite preview"
   },
   "dependencies": {
+    "@djot/djot": "^0.3.2",
     "@fiatjaf/promenade-trusted-dealer": "npm:@jsr/fiatjaf__promenade-trusted-dealer@^0.4.3",
     "@noble/hashes": "^2.4.0",
     "@nostr/gadgets": "npm:@jsr/nostr__gadgets@^0.21.1",

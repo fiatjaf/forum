@@ -3,6 +3,7 @@ import type { NostrEvent } from "@nostr/tools/core"
 import * as nip19 from "@nostr/tools/nip19"
 import DOMPurify from "dompurify"
 import { marked } from "marked"
+import * as djot from "@djot/djot"
 import type { ComponentChildren } from "preact"
 import { useEffect, useRef, useState } from "preact/hooks"
 import { me, pendingName, PROFILE_RELAYS } from "../nostr"
@@ -95,6 +96,18 @@ export const plural = (n: number, one: string, many = one + "s") => `${n} ${n ==
 
 export const titleOf = (evt: NostrEvent) => evt.tags.find(t => t[0] === "title")?.[1] || evt.content.split("\n")[0].slice(0, 80) || "(untitled)"
 
+// A thread whose whole body is one link is a link thread: its title points
+// there and the domain shows next to it, like soliloquy's url threads.
+export function linkOf(evt: NostrEvent): { url: string; domain: string } | null {
+  const body = evt.content.trim()
+  if (!/^https?:\/\/\S+$/.test(body)) return null
+  try {
+    return { url: body, domain: new URL(body).hostname.replace(/^www\./, "") }
+  } catch {
+    return null
+  }
+}
+
 export function snippet(text: string, max = 200): string {
   const flat = text.replace(/\s+/g, " ").trim()
   return flat.length > max ? flat.slice(0, max - 1) + "…" : flat
@@ -122,6 +135,17 @@ export function Markdown({ text, class: cls }: { text: string; class?: string })
   return <div class={cls} dangerouslySetInnerHTML={{ __html: html }} />
 }
 
+// Thread bodies are djot; comments stay markdown.
+export function Djot({ text, class: cls }: { text: string; class?: string }) {
+  let html: string
+  try {
+    html = DOMPurify.sanitize(djot.renderHTML(djot.parse(renderMentions(text))))
+  } catch {
+    html = DOMPurify.sanitize(text.replace(/[&<>]/g, c => `&#${c.charCodeAt(0)};`).replace(/\n/g, "<br>"))
+  }
+  return <div class={cls} dangerouslySetInnerHTML={{ __html: html }} />
+}
+
 // ─── editor ────────────────────────────────────────────────────
 // The write/preview editor every form uses, with its counter.
 
@@ -138,6 +162,7 @@ export function Editor(props: {
   id?: string
   label: string
   bar?: ComponentChildren
+  format?: "markdown" | "djot"
 }) {
   const [tab, setTab] = useState<"write" | "preview">("write")
   const ref = useRef<HTMLTextAreaElement>(null)
@@ -173,7 +198,7 @@ export function Editor(props: {
         }}
       />
       {tab === "preview" && (
-        <div class="preview md">{props.value.trim() ? <Markdown text={props.value} /> : <p class="muted">Nothing to preview.</p>}</div>
+        <div class="preview md">{props.value.trim() ? props.format === "djot" ? <Djot text={props.value} /> : <Markdown text={props.value} /> : <p class="muted">Nothing to preview.</p>}</div>
       )}
       {props.bar && <div class="edbar">{props.bar}</div>}
     </div>

@@ -55,11 +55,11 @@ export function NewThread({ group: g }: { group: Group }) {
           </div>
           <div class="field">
             <label for="thread-body">
-              body <span>(optional, markdown)</span>
+              body <span>(optional, djot)</span>
             </label>
-            <Editor id="thread-body" value={body} onInput={setBody} onSubmit={submit} label="Body" />
+            <Editor id="thread-body" format="djot" value={body} onInput={setBody} onSubmit={submit} label="Body" />
             <div class="hint">
-              <span></span>
+              <span>{/^https?:\/\/\S+$/.test(body.trim()) ? "a link thread: the title will point to this link" : "a body that is only a link makes a link thread"}</span>
               <span>{body.length} / 20000</span>
             </div>
           </div>
@@ -73,11 +73,15 @@ export function NewThread({ group: g }: { group: Group }) {
           </div>
         </form>
 
-        <aside class="thread-help" aria-label="Markdown help">
-          <div class="label">markdown</div>
+        <aside class="thread-help" aria-label="Djot help">
+          <div class="label">
+            <a href="https://djot.net/" target="_blank" rel="noopener">
+              djot
+            </a>
+          </div>
           <pre class="cheat">
-            <b>**bold**</b>
-            {"      "}
+            <b>*bold*</b>
+            {"        "}
             <b>_italic_</b>
             {"\n"}
             <b>`code`</b>
@@ -88,11 +92,17 @@ export function NewThread({ group: g }: { group: Group }) {
             {"       "}
             <b>- list</b>
             {"\n"}
-            <b>nostr:npub1…</b> mention{"\n"}
-            <b>~~strike~~</b>
+            <b>{"{-strike-}"}</b>
+            {"    "}
+            <b>{"{=mark=}"}</b>
+            {"\n"}
+            <b>nostr:npub1…</b> mention
           </pre>
           <div class="label">how it shows</div>
-          <p>New threads go to the top of the front page, and threads with new comments move up.</p>
+          <p>
+            If the body is only a link, the title links to it and the domain shows next to it. New threads go to the top of the
+            front page, and threads with new comments move up.
+          </p>
         </aside>
       </div>
     </div>

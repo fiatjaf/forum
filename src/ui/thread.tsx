@@ -2,7 +2,7 @@ import type { NostrEvent } from "@nostr/tools/core"
 import { useEffect, useRef, useState } from "preact/hooks"
 import type { Group } from "../groups"
 import { me } from "../nostr"
-import { Counter, Editor, Markdown, UserLink, VoteButton, ago, displayName, lastRead, markRead, navigate, plural, titleOf } from "./common"
+import { Counter, Djot, Editor, Markdown, UserLink, VoteButton, ago, displayName, lastRead, markRead, navigate, plural, linkOf, titleOf } from "./common"
 import { Membership } from "./forum"
 
 const parentOf = (c: NostrEvent) => c.tags.findLast(t => t[0] === "e")?.[1]
@@ -44,6 +44,7 @@ export function ThreadPage({ group: g, id }: { group: Group; id: string }) {
   }
 
   const deleted = g.isDeleted(thread)
+  const link = linkOf(thread)
   const visible = comments.filter(c => !g.isDeleted(c))
   const score = g.voters(thread.id).size
   const voted = g.myVotes(thread.id).length > 0
@@ -76,7 +77,20 @@ export function ThreadPage({ group: g, id }: { group: Group; id: string }) {
           <span class={"score" + (voted ? " on" : "")}>{score}</span>
         </div>
         <div class="thread-main">
-          <h1 class="thread-title">{deleted ? "[deleted]" : titleOf(thread)}</h1>
+          <h1 class="thread-title">
+            {deleted ? (
+              "[deleted]"
+            ) : link ? (
+              <>
+                <a href={link.url} rel="nofollow noopener" target="_blank">
+                  {titleOf(thread)}
+                </a>{" "}
+                <span class="dom">{link.domain}</span>
+              </>
+            ) : (
+              titleOf(thread)
+            )}
+          </h1>
           <div class="meta">
             <UserLink pubkey={thread.pubkey} group={g} />
             <span>·</span>
@@ -104,7 +118,7 @@ export function ThreadPage({ group: g, id }: { group: Group; id: string }) {
               </>
             )}
           </div>
-          {!deleted && thread.content.trim() && <Markdown class="md thread-body" text={thread.content} />}
+          {!deleted && !link && thread.content.trim() && <Djot class="md thread-body" text={thread.content} />}
         </div>
       </article>
 
