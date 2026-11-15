@@ -202,16 +202,17 @@ export function DesktopAlertsCard() {
 
 // ─── programmatic access ───────────────────────────────────────
 
-export function ProgrammaticAccess(props: { group: Group }) {
+export function ProgrammaticAccess(props: { group?: Group }) {
   const [copied, setCopied] = createSignal(false)
 
   const address = () => {
     useChanges()
     const g = props.group
+    if (!g) return "<address>"
     return g.naddr ?? `${g.relay.replace(/^wss?:\/\//, "").replace(/\/$/, "")}/${g.id}`
   }
-  const relay = () => props.group.relay
-  const groupId = () => props.group.id
+  const relay = () => props.group?.relay ?? "<relay>"
+  const groupId = () => props.group?.id ?? "<group-id>"
 
   const copy = () => {
     if (!navigator.clipboard) return
@@ -226,7 +227,7 @@ export function ProgrammaticAccess(props: { group: Group }) {
       <div class="card-h">
         <h2 id="programmatic-heading">programmatic access</h2>
         <p>
-          This forum is a{" "}
+          Each forum is a{" "}
           <a class="underline" href="https://nips.nostr.com/29" target="_blank" rel="noopener">
             NIP-29
           </a>{" "}
@@ -238,15 +239,25 @@ export function ProgrammaticAccess(props: { group: Group }) {
         </p>
       </div>
       <div class="card-b">
-        <div class="field">
-          <label for="group-address">group address</label>
-          <div class="row-inline">
-            <input id="group-address" class="inp wide mono" type="text" readonly value={address()} aria-label="Group address" />
-            <button class="btn" type="button" onClick={copy}>
-              {copied() ? "copied" : "copy"}
-            </button>
+        <Show
+          when={props.group}
+          fallback={
+            <p class="help">
+              Open a forum's settings to copy its group address. The examples below use <code>&lt;address&gt;</code>,{" "}
+              <code>&lt;group-id&gt;</code> and <code>&lt;relay&gt;</code> as placeholders.
+            </p>
+          }
+        >
+          <div class="field">
+            <label for="group-address">group address</label>
+            <div class="row-inline">
+              <input id="group-address" class="inp wide mono" type="text" readonly value={address()} aria-label="Group address" />
+              <button class="btn" type="button" onClick={copy}>
+                {copied() ? "copied" : "copy"}
+              </button>
+            </div>
           </div>
-        </div>
+        </Show>
 
         <div class="programmatic-block">
           <h3>read</h3>

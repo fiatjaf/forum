@@ -2,11 +2,11 @@ import "./style.css"
 import "./extra.css"
 import { type Accessor, Show, createEffect, createMemo, createSignal } from "solid-js"
 import { render } from "solid-js/web"
-import { me, pendingName, ensureProfile } from "./nostr"
+import { loggedIn, me, pendingName, ensureProfile } from "./nostr"
 import { getGroup, parseNaddr, type Group } from "./groups"
 import { activate, startSync } from "./sync"
 import { useChanges } from "./state"
-import { displayName, navigate, npub } from "./ui/common"
+import { displayName, navigate } from "./ui/common"
 import { Home } from "./ui/home"
 import { CreateForum } from "./ui/create"
 import { Forum } from "./ui/forum"
@@ -15,6 +15,8 @@ import { NewThread } from "./ui/newthread"
 import { ForumSettings } from "./ui/settings"
 import { SearchPage } from "./ui/search"
 import { Profile } from "./ui/profile"
+import { AccountPage } from "./ui/account"
+import { Login } from "./ui/login"
 import { Notifications, unreadNotifications, watchDesktopAlerts } from "./ui/notifications"
 import { Resolve } from "./ui/resolve"
 
@@ -22,6 +24,7 @@ type Route = (
     | { page: "home" }
     | { page: "create" }
     | { page: "notifications" }
+    | { page: "account" }
     | { page: "profile"; code: string }
     | { page: "resolve"; code: string }
     | { page: "forum"; naddr: string; group: Group; sub: string[] }
@@ -39,6 +42,7 @@ function parseRoute(): Route {
     if (!first) return withPath({ page: "home" })
     if (first === "new" && !rest.length) return withPath({ page: "create" })
     if (first === "notifications") return withPath({ page: "notifications" })
+    if (first === "account" && !rest.length) return withPath({ page: "account" })
     if (first.startsWith("npub1") || first.startsWith("nprofile1")) return withPath({ page: "profile", code: first })
     if (first.startsWith("nevent1") || first.startsWith("note1")) return withPath({ page: "resolve", code: first })
     if (first.startsWith("naddr1")) {
@@ -98,6 +102,8 @@ function Page(props: { route: Route }) {
             return <CreateForum />
         case "notifications":
             return <Notifications />
+        case "account":
+            return <AccountPage />
         case "profile":
             return <Profile code={r.code} />
         case "resolve":
@@ -213,7 +219,7 @@ function Header(props: { route: Accessor<Route> }) {
                         </svg>
                         {unread() > 0 && <span class="badge">{unread()}</span>}
                     </a>
-                    <a class="me" href={`/${npub(me)}`}>
+                    <a class="me" href="/account">
                         {myName()}
                     </a>
                 </div>
@@ -221,7 +227,7 @@ function Header(props: { route: Accessor<Route> }) {
             <nav class="sub" aria-label="Main">
                 {nav()}
                 <span class="sp"></span>
-                <a href={`/${npub(me)}`}>{myName()}</a>
+                <a href="/account">{myName()}</a>
             </nav>
         </>
     )
@@ -233,7 +239,7 @@ function Welcome() {
     const [dismissed, setDismissed] = createSignal<boolean>(localStorage.getItem("welcomed") === "1")
     const name = () => {
         useChanges()
-        if (dismissed() || location.pathname === `/${npub(me)}`) return null
+        if (dismissed() || location.pathname === "/account") return null
         return pendingName()
     }
     const close = () => {
@@ -249,7 +255,7 @@ function Welcome() {
                     <span class="notice-title">hello</span>
                     <span>
                         You're <b>{name()}</b> here. A key was made for you in this browser.{" "}
-                        <a class="accent" href={`/${npub(me)}`} onClick={close}>
+                        <a class="accent" href="/account#name" onClick={close}>
                             pick another name
                         </a>{" "}
                         ·{" "}
@@ -285,5 +291,5 @@ function NotFound() {
     )
 }
 
-render(() => <App />, document.getElementById("app")!)
-startSync()
+render(() => (loggedIn ? <App /> : <Login />), document.getElementById("app")!)
+if (loggedIn) startSync()

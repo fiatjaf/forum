@@ -7,7 +7,6 @@ import { PlainKeySigner, type Signer } from "@nostr/tools/signer"
 import { BunkerSigner, parseBunkerInput } from "@nostr/tools/nip46"
 import * as nip19 from "@nostr/tools/nip19"
 import { bytesToHex, hexToBytes } from "@nostr/tools/utils"
-import { haikuName } from "./haiku"
 import { save } from "./store"
 import { emit } from "./state"
 
@@ -39,16 +38,17 @@ function writeJSON(key: string, value: unknown) {
   } catch {}
 }
 
-let account: StoredAccount = readJSON<StoredAccount>("account") ?? newLocalAccount()
+const storedAccount = readJSON<StoredAccount>("account")
+let account: StoredAccount = storedAccount ?? newLocalAccount()
 let signer: Signer
 export let me: string
 
+// A key generated for this page load still lets the rest of the modules run,
+// but only a key read from storage means the person is logged in.
+export const loggedIn = storedAccount !== null
+
 function newLocalAccount(): StoredAccount {
-  const acc: StoredAccount = { type: "nsec", sk: bytesToHex(generateSecretKey()), created: true }
-  writeJSON("account", acc)
-  // a name for this key until the person picks one; published on first write
-  writeJSON("pendingName", haikuName())
-  return acc
+  return { type: "nsec", sk: bytesToHex(generateSecretKey()), created: true }
 }
 
 function setupSigner() {
@@ -124,9 +124,20 @@ export async function useBunker(input: string, beforeSwitch?: () => void) {
   location.href = "/"
 }
 
-export function startFresh() {
+export function createAccount(name: string) {
+  writeJSON("account", newLocalAccount())
+  writeJSON("pendingName", name)
   writeJSON("pomegranate", null)
-  account = newLocalAccount()
+  try {
+    localStorage.setItem("welcomed", "1")
+  } catch {}
+  location.href = "/"
+}
+
+export function logout() {
+  writeJSON("account", null)
+  writeJSON("pendingName", null)
+  writeJSON("pomegranate", null)
   location.href = "/"
 }
 
@@ -139,6 +150,7 @@ export function pomegranateLink(): PomegranateLink | null {
 
 export function setPomegranateLink(link: PomegranateLink | null) {
   writeJSON("pomegranate", link)
+  emit()
 }
 
 // ─── relay auth ────────────────────────────────────────────────
