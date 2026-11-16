@@ -33,6 +33,10 @@ export function ThreadPage(props: { group: Group; id: string }) {
     useChanges()
     return g.threads.get(id)
   })
+  const syncing = () => {
+    useChanges()
+    return g.syncing
+  }
   const comments = createMemo(() => {
     useChanges()
     // a fresh array: ingest pushes onto the model's array in place
@@ -68,7 +72,7 @@ export function ThreadPage(props: { group: Group; id: string }) {
           <a class="back" href={base}>
             ‹ ~/threads
           </a>
-          <p class="hint">{g.syncing ? "Loading the thread…" : "Thread not found."}</p>
+          <p class="hint">{syncing() ? "Loading the thread…" : "Thread not found."}</p>
         </div>
       }
     >
@@ -101,8 +105,7 @@ export function ThreadPage(props: { group: Group; id: string }) {
             list.push(c)
             map.set(p, list)
           }
-          const best = (a: Event, b: Event) =>
-            g.voters(b.id).size - g.voters(a.id).size || a.created_at - b.created_at
+          const best = (a: Event, b: Event) => g.voters(b.id).size - g.voters(a.id).size || a.created_at - b.created_at
           for (const list of map.values()) list.sort(best)
           return map
         })
@@ -179,7 +182,7 @@ export function ThreadPage(props: { group: Group; id: string }) {
               <ol class="comment-list" id="comments">
                 <For each={byParent().get(id) ?? []}>{c => <Comment c={c} ctx={ctx} />}</For>
               </ol>
-              {!comments().length && <p class="no-comments">No comments yet.</p>}
+              {!visible().length && <p class="no-comments">No comments yet.</p>}
             </section>
 
             <div class="dock">
@@ -352,7 +355,7 @@ function CommentForm(props: { g: Group; thread: Event; parent: Event; onDone?: (
         placeholder={isReply ? `Reply to ${author}` : "Add a comment."}
         bar={
           <>
-            <span>{isReply ? `replying to ${author}` : "nip27"}</span>
+            <span>{isReply ? `replying to ${author}` : "plain text"}</span>
             <span class="sp"></span>
             <Counter value={body()} />
             <button class="btn pri" type="submit" disabled={busy()}>

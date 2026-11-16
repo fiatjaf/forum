@@ -11,7 +11,10 @@ const jsrNpmSpecifiers = (): Plugin => ({
     if (!id.includes("/node_modules/") || !code.includes("npm:")) return null
     // The jsxImportSource pragmas point at `npm:` specifiers too, and esbuild
     // warns about them once they are rewritten.
-    const stripped = code.replace(/\/\*\*\s*@jsx(?:Runtime|ImportSource|ImportSourceTypes|Factory|FragmentFactory)\b[^*]*\*\//g, "")
+    const stripped = code.replace(
+      /\/\*\*\s*@jsx(?:Runtime|ImportSource|ImportSourceTypes|Factory|FragmentFactory)\b[^*]*\*\//g,
+      ""
+    )
     return stripped.replace(/(["'])npm:([^"']+)\1/g, (_whole, quote: string, spec: string) => {
       const bare = spec.replace(/^(@[^/]+\/[^@/]+|[^@/]+)@[^/]*/, "$1")
       return quote + bare + quote

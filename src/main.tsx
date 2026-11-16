@@ -13,6 +13,7 @@ import { Forum } from "./ui/forum"
 import { ThreadPage } from "./ui/thread"
 import { NewThread } from "./ui/newthread"
 import { ForumSettings } from "./ui/settings"
+import { ForumAdmin } from "./ui/admin"
 import { SearchPage } from "./ui/search"
 import { Profile } from "./ui/profile"
 import { AccountPage } from "./ui/account"
@@ -84,7 +85,7 @@ function App() {
           {r => <Page route={r} />}
         </Show>
         <footer class="foot">
-          <span>a simple forum</span>
+          <span>a simple forum app</span>
         </footer>
       </main>
     </>
@@ -111,6 +112,7 @@ function Page(props: { route: Route }) {
       if (!sub) return <Forum group={r.group} />
       if (sub === "new") return <NewThread group={r.group} />
       if (sub === "settings") return <ForumSettings group={r.group} />
+      if (sub === "admin") return <ForumAdmin group={r.group} />
       if (sub === "search") return <SearchPage group={r.group} />
       if (/^[0-9a-f]{64}$/.test(sub) && !more.length) return <ThreadPage group={r.group} id={sub} />
       return <NotFound />
@@ -140,21 +142,21 @@ function Header(props: { route: Accessor<Route> }) {
     useChanges()
     return displayName(me)
   }
+  const isAdmin = () => {
+    useChanges()
+    return !!group()?.isAdmin()
+  }
+  const tab = (href: string, label: string) => (
+    <a class={path() === href ? "on" : ""} aria-current={path() === href ? "page" : undefined} href={href}>
+      {label}
+    </a>
+  )
   const nav = () => (
     <>
-      {base() ? (
-        <a class={path() === base() ? "on" : ""} aria-current={path() === base() ? "page" : undefined} href={base()!}>
-          threads
-        </a>
-      ) : null}
-      {group() ? (
-        <a class={path() === base() + "/settings" ? "on" : ""} href={base() + "/settings"}>
-          settings
-        </a>
-      ) : null}
-      <a class={path() === "/" ? "on" : ""} aria-current={path() === "/" ? "page" : undefined} href="/">
-        forums
-      </a>
+      {base() && tab(base()!, "threads")}
+      {base() && tab(base() + "/settings", "settings")}
+      {base() && isAdmin() && tab(base() + "/admin", "admin")}
+      {tab("/", "forums")}
     </>
   )
   return (
@@ -298,7 +300,7 @@ function Welcome() {
         <div class="notice welcome" role="status">
           <span class="notice-title">hello</span>
           <span>
-            You're <b>{name()}</b> here. A key was made for you in this browser.{" "}
+            You're <b>{name()}</b> here. This browser made a key for you.{" "}
             <a class="accent" href="/account#name" onClick={close}>
               pick another name
             </a>{" "}

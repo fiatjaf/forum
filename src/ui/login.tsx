@@ -65,8 +65,8 @@ export function Login() {
         <a class="logo login-logo" href="/" aria-label="home">
           <span class="p">›</span>forums<span class="cur"></span>
         </a>
-        <pre class="getty">{`a forum
-this browser has no key`}</pre>
+        <pre class="getty">{`simple forums · public or private
+no key in this browser`}</pre>
 
         <div class="card auth-card" aria-label="Log in">
           <div class="auth-fields">
@@ -93,7 +93,9 @@ this browser has no key`}</pre>
               <button class="btn" type="submit" disabled={!!busy()}>
                 {busy() === "name" ? "creating…" : "ok"}
               </button>
-              <p class="auth-note">A new key is made in this browser. You can copy it from the account page later.</p>
+              <p class="auth-note">
+                This makes a new key in this browser. You can copy it from your account page later.
+              </p>
             </form>
 
             <div class="auth-heading">use an existing key</div>
@@ -121,7 +123,11 @@ this browser has no key`}</pre>
           </div>
         </div>
 
-        <p class="auth-note">Keys live in this browser. Logging out forgets the key unless you saved it.</p>
+        <p class="auth-note">
+          Your key stays in this browser. Log out and it's gone, unless you saved it.
+          <br />
+          Anyone can start a forum here, and take it to another server later.
+        </p>
       </div>
     </main>
   )

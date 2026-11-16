@@ -47,7 +47,7 @@ export function Home() {
         </ol>
       ) : anyForums() ? (
         <p>
-          You're not in any forum yet. <a href="/new">Start one</a>, or open one below.
+          You're not in any forum yet. <a href="/new">Start one</a>, or paste a link below.
         </p>
       ) : (
         <p class="hint">Loading your forums…</p>
@@ -130,7 +130,7 @@ function OpenForum() {
           .replace(/^nostr:/, "")
           .replace(/^https?:\/\/[^/]+\//, "")
         if (/^(naddr1|nevent1)/.test(code)) navigate("/" + code)
-        else setError("Paste a forum link (naddr1…) or a thread link (nevent1…).")
+        else setError("That isn't a forum or thread link. They start with naddr1 or nevent1.")
       }}
     >
       <div class="field">

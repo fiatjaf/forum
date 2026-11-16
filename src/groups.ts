@@ -85,6 +85,8 @@ export class Group {
   metadata: Metadata | null = null
   admins = new Map<string, string[]>()
   members: Set<string> | null = null
+  private adminsAt = 0
+  private membersAt = 0
   // the latest 9000 or 9001 about me
   myMembershipEvent: Event | null = null
 
@@ -158,10 +160,14 @@ export class Group {
         break
       }
       case 39001: {
+        if (this.adminsAt > evt.created_at) return
+        this.adminsAt = evt.created_at
         this.admins = new Map(evt.tags.filter(t => t[0] === "p" && t[1]).map(t => [t[1], t.slice(2)]))
         break
       }
       case 39002: {
+        if (this.membersAt > evt.created_at) return
+        this.membersAt = evt.created_at
         this.members = new Set(evt.tags.filter(t => t[0] === "p" && t[1]).map(t => t[1]))
         break
       }
@@ -357,8 +363,8 @@ export class Group {
     await removeFromMyGroups(this)
   }
 
-  putUser(pubkey: string) {
-    return this.publish({ kind: 9000, content: "", tags: [["p", pubkey]] })
+  putUser(pubkey: string, roles: string[] = []) {
+    return this.publish({ kind: 9000, content: "", tags: [["p", pubkey, ...roles]] })
   }
 
   removeUser(pubkey: string) {
@@ -366,10 +372,22 @@ export class Group {
   }
 
   async createInvite(): Promise<string> {
-    const code = Math.random().toString(36).slice(2, 10) + Math.random().toString(36).slice(2, 10)
+    const code = randomId(16)
     await this.publish({ kind: 9009, content: "", tags: [["code", code]] })
     return code
   }
+
+  async deleteGroup() {
+    await this.publish({ kind: 9008, content: "", tags: [] })
+    await removeFromMyGroups(this).catch(() => {})
+  }
+}
+
+function randomId(length: number): string {
+  return Array.from(
+    crypto.getRandomValues(new Uint8Array(length)),
+    b => "abcdefghijklmnopqrstuvwxyz0123456789"[b % 36]
+  ).join("")
 }
 
 // ─── registry ──────────────────────────────────────────────────
@@ -462,10 +480,7 @@ export async function createGroup(opts: {
 }): Promise<Group> {
   const relay = normalizeRelay(opts.relay)
   const relayPubkey = await relaySelf(relay)
-  const id = Array.from(
-    crypto.getRandomValues(new Uint8Array(9)),
-    b => "abcdefghijklmnopqrstuvwxyz0123456789"[b % 36]
-  ).join("")
+  const id = randomId(9)
   const g = getGroup({ id, relay, relayPubkey })
   await g.publish({ kind: 9007, content: "", tags: [] })
   await g.editMetadata(opts)

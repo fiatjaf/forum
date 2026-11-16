@@ -30,8 +30,10 @@ function ensureIndex(): Promise<Index> {
   return building
 }
 
+// While the index is still being built, wait for it: the store query may
+// have missed what arrived in the meantime.
 onSaved(evt => {
-  if (index && (evt.kind === KIND_THREAD || evt.kind === KIND_COMMENT)) add(index, evt)
+  if (building && (evt.kind === KIND_THREAD || evt.kind === KIND_COMMENT)) building.then(idx => add(idx, evt))
 })
 
 // Best match first, only from the given group.

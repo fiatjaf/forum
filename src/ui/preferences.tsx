@@ -238,11 +238,11 @@ export function ProgrammaticAccess(props: { group?: Group }) {
       <div class="card-h">
         <h2 id="programmatic-heading">programmatic access</h2>
         <p>
-          Each forum is an NIP-29 group, so any compatible client or script can read and post to it.{" "}
+          Forums here use an open protocol, so any compatible app or script can read and post too.{" "}
           <a class="underline" href="https://github.com/fiatjaf/nak" target="_blank" rel="noopener">
             nak
           </a>{" "}
-          is a small command-line tool that speaks it.
+          is a small command-line tool that can.
         </p>
       </div>
       <div class="card-b">
@@ -250,9 +250,9 @@ export function ProgrammaticAccess(props: { group?: Group }) {
           when={props.group}
           fallback={
             <p class="help">
-              Open a forum's settings to copy its group id and server. The examples below use{" "}
-              <code>&lt;group-id&gt;</code>, <code>&lt;server&gt;</code>, <code>&lt;thread-id&gt;</code> and{" "}
-              <code>&lt;thread-author&gt;</code> as placeholders.
+              Open a forum's settings to copy its address. The examples below use <code>&lt;group-id&gt;</code>,{" "}
+              <code>&lt;server&gt;</code>, <code>&lt;thread-id&gt;</code> and <code>&lt;thread-author&gt;</code> as
+              placeholders.
             </p>
           }
         >
@@ -294,7 +294,7 @@ nak req -i <thread-id> ${relay()}`}</pre>
           <pre class="api-example">{`# post a thread
 nak event -k 11 -h ${groupId()} -t "title=hello world" -c "first post" ${relay()}
 
-# reply to a thread (a NIP-22 comment)
+# reply to a thread
 nak event -k 1111 -h ${groupId()} \\
   -t E=<thread-id> -t K=11 -t P=<thread-author> \\
   -t e=<thread-id> -t k=11 -t p=<thread-author> \\

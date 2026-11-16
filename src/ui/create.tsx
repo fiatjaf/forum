@@ -83,7 +83,7 @@ export function ForumFields(props: { form: () => ForumForm; set: (f: Partial<For
         <p class="hint">
           {form().isPrivate
             ? "Only members can read threads and comments."
-            : "Anyone with the link can read threads and comments."}
+            : "Anyone with the link can read threads and comments. Only members can post."}
         </p>
       </section>
 
@@ -112,9 +112,7 @@ export function ForumFields(props: { form: () => ForumForm; set: (f: Partial<For
           </label>
         </fieldset>
         <p class="hint">
-          {form().isClosed
-            ? "People join with an invite link or when an admin adds them."
-            : "Anyone can join by asking; the server lets them in."}
+          {form().isClosed ? "People join with an invite link or when an admin adds them." : "Anyone can join."}
         </p>
       </section>
     </>
@@ -168,7 +166,7 @@ export function CreateForum() {
             server
           </h2>
           <div class="field">
-            <label for="forum-server">NIP-29 server</label>
+            <label for="forum-server">server address</label>
             <input
               id="forum-server"
               class="inp mono"
@@ -179,7 +177,8 @@ export function CreateForum() {
             />
           </div>
           <p class="hint">
-            The server hosts the forum and enforces who can read and write. It must support NIP-29 groups.
+            The server keeps the forum and decides who can read and post. Any compatible server works, and you can move
+            the forum to another one later, including a server you run yourself.
           </p>
         </section>
 

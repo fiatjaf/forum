@@ -69,7 +69,7 @@ export function Forum(props: { group: Group }) {
         <p class="hint">Loading threads from {g.relay}…</p>
       ) : !metadata() && !member() ? (
         <p class="hint">
-          Nothing to show. This forum is probably private: join it, or open an invite link, to read it.
+          Nothing to show. This forum is probably private. Join it, or open an invite link, to read it.
         </p>
       ) : syncError() && !g.threads.size ? (
         <p class="err" role="alert">
@@ -210,7 +210,7 @@ export function Membership(props: { group: Group }) {
                 : meta()?.isPrivate || !meta()
                   ? invite
                     ? "You have an invite. Join to read and post."
-                    : "This forum is private (or its server won't say). Join to read and post."
+                    : "This forum is private, or its server won't say. Join to read and post."
                   : "You can read this forum. Join to keep it in your list."}
             </span>
             <span class="sp"></span>

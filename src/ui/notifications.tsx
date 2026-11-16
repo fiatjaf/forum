@@ -156,7 +156,6 @@ function Item(props: { n: Note; unread?: boolean }) {
   const n = props.n
   const label = n.kind
   const title = n.root ? titleOf(n.root) : "a thread"
-  const rootId = n.evt.tags.find(t => t[0] === "E")?.[1]
   const who = createMemo(() => {
     useChanges()
     return displayName(n.evt.pubkey, [n.g.relay])
@@ -170,7 +169,7 @@ function Item(props: { n: Note; unread?: boolean }) {
       ></span>
       <span class="kind">{label}</span>
       <div class="n-body">
-        <a class="what" href={`/${n.g.naddr}/${rootId}#c${n.evt.id}`}>
+        <a class="what" href={noteURL(n)}>
           <span class="who">
             <span class="u">{who()}</span>
             <span class="kind-inline">{label}</span>
