@@ -114,7 +114,7 @@ export function ForumFields(props: { form: () => ForumForm; set: (f: Partial<For
         <p class="hint">
           {form().isClosed
             ? "People join with an invite link or when an admin adds them."
-            : "Anyone can join by asking; the relay lets them in."}
+            : "Anyone can join by asking; the server lets them in."}
         </p>
       </section>
     </>
@@ -163,14 +163,14 @@ export function CreateForum() {
           }
         }}
       >
-        <section class="panel account-section" aria-labelledby="relay-heading">
-          <h2 class="label" id="relay-heading">
-            relay
+        <section class="panel account-section" aria-labelledby="server-heading">
+          <h2 class="label" id="server-heading">
+            server
           </h2>
           <div class="field">
-            <label for="forum-relay">NIP-29 relay</label>
+            <label for="forum-server">NIP-29 server</label>
             <input
-              id="forum-relay"
+              id="forum-server"
               class="inp mono"
               value={relay()}
               required
@@ -179,7 +179,7 @@ export function CreateForum() {
             />
           </div>
           <p class="hint">
-            The relay hosts the forum and enforces who can read and write. It must support NIP-29 groups.
+            The server hosts the forum and enforces who can read and write. It must support NIP-29 groups.
           </p>
         </section>
 

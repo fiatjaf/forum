@@ -1,12 +1,12 @@
-import type { NostrEvent } from "@nostr/tools/core"
+import type { NostrEvent as Event } from "@nostr/tools/core"
 import { For, createEffect, createMemo, createSignal, on } from "solid-js"
 import { allGroups, type Group } from "../groups"
-import { me } from "../nostr"
+import { me } from "../account"
 import { useChanges } from "../state"
 import { ago, displayName, navigate, snippet, titleOf } from "./common"
 import { desktopAlertsActive } from "./preferences"
 
-type Note = { g: Group; evt: NostrEvent; kind: "reply" | "comment" | "mention"; root?: NostrEvent }
+type Note = { g: Group; evt: Event; kind: "reply" | "comment" | "mention"; root?: Event }
 
 // Comments, in the forums this browser holds, that reply to me, land on my
 // threads or mention me.

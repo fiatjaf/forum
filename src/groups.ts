@@ -1,11 +1,11 @@
 import { loadSimpleGroups, type SimpleGroupItem } from "@nostr/gadgets/lists"
 import { pool } from "@nostr/gadgets/global"
-import type { EventTemplate, NostrEvent } from "@nostr/tools/core"
+import type { EventTemplate, NostrEvent as Event } from "@nostr/tools/core"
 import { fetchRelayInformation } from "@nostr/tools/nip11"
 import * as nip19 from "@nostr/tools/nip19"
 import { parse } from "@nostr/tools/nip27"
 import { normalizeURL } from "@nostr/tools/utils"
-import { anySuccess, authRelays, me, myWriteRelays, now, onauth, publishToRelay, sign } from "./nostr"
+import { anySuccess, authRelays, me, myWriteRelays, now, onauth, publishToRelay, sign } from "./account"
 import { onSaved, query, save } from "./store"
 import { emit } from "./state"
 
@@ -18,7 +18,7 @@ export const META_KINDS = [39000, 39001, 39002]
 
 export type GroupRef = { id: string; relay: string; relayPubkey?: string }
 
-const tag = (evt: NostrEvent, name: string) => evt.tags.find(t => t[0] === name)?.[1]
+const tag = (evt: Event, name: string) => evt.tags.find(t => t[0] === name)?.[1]
 
 export function normalizeRelay(input: string): string {
   input = input.trim()
@@ -26,8 +26,8 @@ export function normalizeRelay(input: string): string {
   return normalizeURL(input)
 }
 
-// ─── relay identity ────────────────────────────────────────────
-// The naddr of a group names the relay's own key (NIP-11 "self"), which also
+// ─── server identity ───────────────────────────────────────────
+// The naddr of a group names the server's own key (NIP-11 "self"), which also
 // signs the group's 39xxx events.
 const relaySelfCache = new Map<string, Promise<string>>()
 
@@ -74,7 +74,7 @@ export type Metadata = {
   picture?: string
   isPrivate: boolean
   isClosed: boolean
-  event: NostrEvent
+  event: Event
 }
 
 export class Group {
@@ -86,18 +86,18 @@ export class Group {
   admins = new Map<string, string[]>()
   members: Set<string> | null = null
   // the latest 9000 or 9001 about me
-  myMembershipEvent: NostrEvent | null = null
+  myMembershipEvent: Event | null = null
 
-  threads = new Map<string, NostrEvent>()
-  comments = new Map<string, NostrEvent>()
-  commentsByRoot = new Map<string, NostrEvent[]>()
-  reactions = new Map<string, NostrEvent[]>()
+  threads = new Map<string, Event>()
+  comments = new Map<string, Event>()
+  commentsByRoot = new Map<string, Event[]>()
+  reactions = new Map<string, Event[]>()
   // kind:5 targets, by the deleting author (only that author's events count)
   deletions = new Map<string, Set<string>>()
-  // 9005 targets: the relay accepted them from a moderator
+  // 9005 targets: the server accepted them from a moderator
   removed = new Set<string>()
   // the most recent events, for the "previous" tag on what we publish
-  recent: NostrEvent[] = []
+  recent: Event[] = []
 
   loaded: Promise<void>
   syncing = false
@@ -134,14 +134,14 @@ export class Group {
     emit()
   }
 
-  ingest(evt: NostrEvent) {
+  ingest(evt: Event) {
     const h = tag(evt, "h")
     if (h === this.id) this.ingestContent(evt)
     else if (META_KINDS.includes(evt.kind) && tag(evt, "d") === this.id) this.ingestMeta(evt)
   }
 
-  private ingestMeta(evt: NostrEvent) {
-    // 39xxx are only valid when signed by the relay itself
+  private ingestMeta(evt: Event) {
+    // 39xxx are only valid when signed by the server itself
     if (this.relayPubkey && evt.pubkey !== this.relayPubkey) return
     if (!this.relayPubkey) this.relayPubkey = evt.pubkey
     switch (evt.kind) {
@@ -168,7 +168,7 @@ export class Group {
     }
   }
 
-  private ingestContent(evt: NostrEvent) {
+  private ingestContent(evt: Event) {
     switch (evt.kind) {
       case KIND_THREAD:
         this.threads.set(evt.id, evt)
@@ -220,7 +220,7 @@ export class Group {
 
   // ─── derived state ─────────────────────────────────────────
 
-  isDeleted(evt: NostrEvent): boolean {
+  isDeleted(evt: Event): boolean {
     return this.removed.has(evt.id) || !!this.deletions.get(evt.id)?.has(evt.pubkey)
   }
 
@@ -233,7 +233,7 @@ export class Group {
     return voters
   }
 
-  myVotes(id: string): NostrEvent[] {
+  myVotes(id: string): Event[] {
     return (this.reactions.get(id) ?? []).filter(r => r.pubkey === me && r.content !== "-" && !this.isDeleted(r))
   }
 
@@ -247,15 +247,15 @@ export class Group {
     return !!this.members?.has(pubkey)
   }
 
-  visibleThreads(): NostrEvent[] {
+  visibleThreads(): Event[] {
     return [...this.threads.values()].filter(t => !this.isDeleted(t))
   }
 
-  threadComments(rootId: string): NostrEvent[] {
+  threadComments(rootId: string): Event[] {
     return this.commentsByRoot.get(rootId) ?? []
   }
 
-  lastActivity(thread: NostrEvent): number {
+  lastActivity(thread: Event): number {
     let last = thread.created_at
     for (const c of this.threadComments(thread.id)) if (c.created_at > last && !this.isDeleted(c)) last = c.created_at
     return last
@@ -267,7 +267,7 @@ export class Group {
 
   // ─── writing ───────────────────────────────────────────────
 
-  async publish(template: Omit<EventTemplate, "created_at"> & { created_at?: number }): Promise<NostrEvent> {
+  async publish(template: Omit<EventTemplate, "created_at"> & { created_at?: number }): Promise<Event> {
     const previous = this.recent.slice(0, 3).map(e => e.id.slice(0, 8))
     const tags = [["h", this.id], ...template.tags]
     if (previous.length) tags.push(["previous", ...previous])
@@ -279,7 +279,7 @@ export class Group {
     return this.publish({ kind: KIND_THREAD, content: body, tags: [["title", title]] })
   }
 
-  comment(thread: NostrEvent, parent: NostrEvent, body: string) {
+  comment(thread: Event, parent: Event, body: string) {
     const tags = [
       ["E", thread.id, this.relay, thread.pubkey],
       ["K", String(KIND_THREAD)],
@@ -296,7 +296,7 @@ export class Group {
     return this.publish({ kind: KIND_COMMENT, content: body, tags })
   }
 
-  async toggleVote(target: NostrEvent) {
+  async toggleVote(target: Event) {
     const mine = this.myVotes(target.id)
     if (mine.length) {
       await this.publish({ kind: KIND_DELETION, content: "", tags: [...mine.map(r => ["e", r.id]), ["k", "7"]] })
@@ -313,7 +313,7 @@ export class Group {
     }
   }
 
-  async deleteEvent(target: NostrEvent) {
+  async deleteEvent(target: Event) {
     if (target.pubkey === me) {
       await this.publish({
         kind: KIND_DELETION,
@@ -469,7 +469,7 @@ export async function createGroup(opts: {
   const g = getGroup({ id, relay, relayPubkey })
   await g.publish({ kind: 9007, content: "", tags: [] })
   await g.editMetadata(opts)
-  // the relay's 39000 may take a moment; until then show what we asked for
+  // the server's 39000 may take a moment; until then show what we asked for
   if (!g.metadata) {
     g.metadata = {
       name: opts.name,

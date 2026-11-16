@@ -1,10 +1,10 @@
-import { loadNostrUser, type NostrUser, bareNostrUser } from "@nostr/gadgets/metadata"
-import type { NostrEvent } from "@nostr/tools/core"
+import { loadNostrUser as loadUser, type NostrUser as User, bareNostrUser as bareUser } from "@nostr/gadgets/metadata"
+import type { NostrEvent as Event } from "@nostr/tools/core"
 import * as nip19 from "@nostr/tools/nip19"
 import { type Block, parse } from "@nostr/tools/nip27"
 import { Djot as DjotDoc } from "@fiatjaf/solid-djot"
 import { type JSX, createEffect, createMemo, createSignal, on, onCleanup, onMount } from "solid-js"
-import { me, pendingName, PROFILE_RELAYS } from "../nostr"
+import { me, pendingName, PROFILE_RELAYS } from "../account"
 import type { Group } from "../groups"
 import { emit, useChanges } from "../state"
 
@@ -33,14 +33,14 @@ window.addEventListener("popstate", () => emit())
 
 // ─── people ────────────────────────────────────────────────────
 
-const users = new Map<string, NostrUser>()
+const users = new Map<string, User>()
 const loading = new Set<string>()
 
-export function getUser(pubkey: string, relays: string[] = []): NostrUser {
+export function getUser(pubkey: string, relays: string[] = []): User {
   const known = users.get(pubkey)
   if (!known && !loading.has(pubkey)) {
     loading.add(pubkey)
-    loadNostrUser({ pubkey, relays: [...relays, ...PROFILE_RELAYS] })
+    loadUser({ pubkey, relays: [...relays, ...PROFILE_RELAYS] })
       .then(u => {
         users.set(pubkey, u)
         emit()
@@ -48,7 +48,7 @@ export function getUser(pubkey: string, relays: string[] = []): NostrUser {
       .catch(() => {})
       .finally(() => loading.delete(pubkey))
   }
-  return known ?? bareNostrUser(pubkey)
+  return known ?? bareUser(pubkey)
 }
 
 // After publishing a new kind:0 the loader has it; ask again.
@@ -96,12 +96,12 @@ export const plural = (n: number, one: string, many = one + "s") => `${n} ${n ==
 
 // ─── events ────────────────────────────────────────────────────
 
-export const titleOf = (evt: NostrEvent) =>
+export const titleOf = (evt: Event) =>
   evt.tags.find(t => t[0] === "title")?.[1] || evt.content.split("\n")[0].slice(0, 80) || "(untitled)"
 
 // A thread whose whole body is one link is a link thread: its title points
 // there and the domain shows next to it, like soliloquy's url threads.
-export function linkOf(evt: NostrEvent): { url: string; domain: string } | null {
+export function linkOf(evt: Event): { url: string; domain: string } | null {
   const body = evt.content.trim()
   if (!/^https?:\/\/\S+$/.test(body)) return null
   try {
@@ -122,8 +122,8 @@ export function snippet(text: string, max = 200): string {
 
 const mediaBlock = (block?: Block) => block?.type === "image" || block?.type === "video" || block?.type === "audio"
 
-export function NoteContent(props: { event: Pick<NostrEvent, "content" | "tags">; group?: Group; class?: string }) {
-  const blocks = [...parse(props.event as NostrEvent)]
+export function NoteContent(props: { event: Pick<Event, "content" | "tags">; group?: Group; class?: string }) {
+  const blocks = [...parse(props.event as Event)]
 
   return (
     <div class={"nc" + (props.class ? " " + props.class : "")}>
@@ -334,7 +334,7 @@ export function Counter(props: { value: string; max?: number }) {
 
 // ─── votes ─────────────────────────────────────────────────────
 
-export function VoteButton(props: { group: Group; target: NostrEvent; size?: number }) {
+export function VoteButton(props: { group: Group; target: Event; size?: number }) {
   const voted = () => {
     useChanges()
     return props.group.myVotes(props.target.id).length > 0

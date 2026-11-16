@@ -1,8 +1,8 @@
-import type { NostrEvent } from "@nostr/tools/core"
+import type { NostrEvent as Event } from "@nostr/tools/core"
 import * as nip19 from "@nostr/tools/nip19"
 import { For, createMemo } from "solid-js"
 import { KIND_COMMENT, allGroups, type Group } from "../groups"
-import { me } from "../nostr"
+import { me } from "../account"
 import { useChanges } from "../state"
 import { ago, displayName, getUser, plural, snippet, titleOf } from "./common"
 
@@ -32,8 +32,8 @@ export function Profile(props: { code: string }) {
   // everything this person wrote in the forums this browser holds
   const activity = createMemo(() => {
     useChanges()
-    const threads: [Group, NostrEvent][] = []
-    const comments: [Group, NostrEvent][] = []
+    const threads: [Group, Event][] = []
+    const comments: [Group, Event][] = []
     for (const g of allGroups()) {
       for (const t of g.threads.values()) if (t.pubkey === pubkey && !g.isDeleted(t)) threads.push([g, t])
       for (const c of g.comments.values()) if (c.pubkey === pubkey && !g.isDeleted(c)) comments.push([g, c])

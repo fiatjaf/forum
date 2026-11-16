@@ -1,7 +1,7 @@
-import type { NostrEvent } from "@nostr/tools/core"
+import type { NostrEvent as Event } from "@nostr/tools/core"
 import { For, Show, createEffect, createMemo, createSignal, type Accessor } from "solid-js"
 import type { Group } from "../groups"
-import { me } from "../nostr"
+import { me } from "../account"
 import { useChanges } from "../state"
 import {
   Counter,
@@ -21,7 +21,7 @@ import {
 } from "./common"
 import { Membership } from "./forum"
 
-const parentOf = (c: NostrEvent) => c.tags.findLast(t => t[0] === "e")?.[1]
+const parentOf = (c: Event) => c.tags.findLast(t => t[0] === "e")?.[1]
 
 export function ThreadPage(props: { group: Group; id: string }) {
   const g = props.group
@@ -93,7 +93,7 @@ export function ThreadPage(props: { group: Group; id: string }) {
         const byParent = createMemo(() => {
           const cs = comments()
           const known = new Set(cs.map(c => c.id))
-          const map = new Map<string, NostrEvent[]>()
+          const map = new Map<string, Event[]>()
           for (const c of cs) {
             let p = parentOf(c) ?? id
             if (p !== id && !known.has(p)) p = id
@@ -101,7 +101,7 @@ export function ThreadPage(props: { group: Group; id: string }) {
             list.push(c)
             map.set(p, list)
           }
-          const best = (a: NostrEvent, b: NostrEvent) =>
+          const best = (a: Event, b: Event) =>
             g.voters(b.id).size - g.voters(a.id).size || a.created_at - b.created_at
           for (const list of map.values()) list.sort(best)
           return map
@@ -201,9 +201,9 @@ export function ThreadPage(props: { group: Group; id: string }) {
   )
 }
 
-type Ctx = { g: Group; thread: NostrEvent; byParent: Accessor<Map<string, NostrEvent[]>>; readBefore?: number }
+type Ctx = { g: Group; thread: Event; byParent: Accessor<Map<string, Event[]>>; readBefore?: number }
 
-function Comment(props: { c: NostrEvent; ctx: Ctx }) {
+function Comment(props: { c: Event; ctx: Ctx }) {
   const { g, thread, byParent, readBefore } = props.ctx
   const c = props.c
   const [collapsed, setCollapsed] = createSignal(false)
@@ -300,7 +300,7 @@ function Comment(props: { c: NostrEvent; ctx: Ctx }) {
   )
 }
 
-function CommentForm(props: { g: Group; thread: NostrEvent; parent: NostrEvent; onDone?: () => void }) {
+function CommentForm(props: { g: Group; thread: Event; parent: Event; onDone?: () => void }) {
   const g = props.g
   const thread = props.thread
   const parent = props.parent

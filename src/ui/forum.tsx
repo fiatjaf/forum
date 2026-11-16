@@ -1,7 +1,7 @@
 import { For, Show, createMemo, createSignal } from "solid-js"
-import type { NostrEvent } from "@nostr/tools/core"
+import type { NostrEvent as Event } from "@nostr/tools/core"
 import { inMyGroups, addToMyGroups, type Group } from "../groups"
-import { me } from "../nostr"
+import { me } from "../account"
 import { isLive, rejoined } from "../sync"
 import { useChanges } from "../state"
 import { UserLink, VoteButton, ago, lastRead, linkOf, plural, titleOf } from "./common"
@@ -103,7 +103,7 @@ export function Forum(props: { group: Group }) {
   )
 }
 
-function ThreadRow(props: { group: Group; thread: NostrEvent; base: string }) {
+function ThreadRow(props: { group: Group; thread: Event; base: string }) {
   const g = props.group
   const t = props.thread
   const info = createMemo(() => {
@@ -210,7 +210,7 @@ export function Membership(props: { group: Group }) {
                 : meta()?.isPrivate || !meta()
                   ? invite
                     ? "You have an invite. Join to read and post."
-                    : "This forum is private (or its relay won't say). Join to read and post."
+                    : "This forum is private (or its server won't say). Join to read and post."
                   : "You can read this forum. Join to keep it in your list."}
             </span>
             <span class="sp"></span>

@@ -109,7 +109,7 @@ export function NewThread(props: { group: Group }) {
             {"    "}
             <b>{"{=mark=}"}</b>
             {"\n"}
-            <b>nostr:npub1…</b> mention
+            <b>npub1…</b> mention
           </pre>
           <div class="label">how it shows</div>
           <p>

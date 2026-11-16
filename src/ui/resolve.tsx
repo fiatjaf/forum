@@ -1,22 +1,22 @@
 import { pool } from "@nostr/gadgets/global"
-import type { NostrEvent } from "@nostr/tools/core"
+import type { NostrEvent as Event } from "@nostr/tools/core"
 import * as nip19 from "@nostr/tools/nip19"
 import { createSignal, onMount } from "solid-js"
 import { KIND_COMMENT, KIND_THREAD, getGroup, normalizeRelay, relaySelf } from "../groups"
-import { authRelays, onauth } from "../nostr"
+import { authRelays, onauth } from "../account"
 import { query, save } from "../store"
 import { navigate } from "./common"
 
-// A nevent pointing at a forum thread or comment: find it on the hinted relay,
+// A nevent pointing at a forum thread or comment: find it on the hinted server,
 // work out its group from the "h" tag and go to the thread inside the forum,
 // where the whole group gets loaded.
 async function resolve(code: string): Promise<string> {
   const d = nip19.decode(code)
   if (d.type !== "nevent") throw new Error("only nevent links can be opened here")
   const { id, relays = [] } = d.data
-  if (!relays.length) throw new Error("this link has no relay hint, so there's no way to tell which forum it's from")
+  if (!relays.length) throw new Error("this link has no server hint, so there's no way to tell which forum it's from")
 
-  let found: { evt: NostrEvent; relay: string } | null = null
+  let found: { evt: Event; relay: string } | null = null
   const [local] = await query({ ids: [id] }, 1)
   for (const url of relays.map(normalizeRelay)) {
     authRelays.add(url)
@@ -26,7 +26,7 @@ async function resolve(code: string): Promise<string> {
       break
     }
   }
-  if (!found) throw new Error("couldn't find the event on the relays the link names")
+  if (!found) throw new Error("couldn't find the event on the servers the link names")
 
   const { evt, relay } = found
   if (evt.kind !== KIND_THREAD && evt.kind !== KIND_COMMENT) throw new Error("this isn't a forum thread or comment")

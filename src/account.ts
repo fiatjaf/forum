@@ -1,7 +1,7 @@
 import { pool } from "@nostr/gadgets/global"
-import { loadNostrUser } from "@nostr/gadgets/metadata"
+import { loadNostrUser as loadUser } from "@nostr/gadgets/metadata"
 import { loadRelayList } from "@nostr/gadgets/lists"
-import type { EventTemplate, NostrEvent, VerifiedEvent } from "@nostr/tools/core"
+import type { EventTemplate, NostrEvent as Event, VerifiedEvent } from "@nostr/tools/core"
 import { generateSecretKey, getPublicKey } from "@nostr/tools/pure"
 import { PlainKeySigner, type Signer } from "@nostr/tools/signer"
 import { BunkerSigner, parseBunkerInput } from "@nostr/tools/nip46"
@@ -152,8 +152,8 @@ export function setPomegranateLink(link: PomegranateLink | null) {
   emit()
 }
 
-// ─── relay auth ────────────────────────────────────────────────
-// NIP-29 relays ask for AUTH to read private groups and to accept writes.
+// ─── server auth ───────────────────────────────────────────────
+// NIP-29 servers ask for AUTH to read private groups and to accept writes.
 export const authRelays = new Set<string>()
 
 export const onauth = (evt: EventTemplate): Promise<VerifiedEvent> => signer.signEvent(evt)
@@ -171,7 +171,7 @@ export function profileRelays(): string[] {
 }
 
 export async function setProfileName(name: string) {
-  const current = await loadNostrUser({ pubkey: me, relays: profileRelays() })
+  const current = await loadUser({ pubkey: me, relays: profileRelays() })
   const metadata = { ...current.metadata, name }
   await publishProfile(metadata)
 }
@@ -183,13 +183,13 @@ async function publishProfile(metadata: Record<string, unknown>) {
     tags: [],
     content: JSON.stringify(metadata)
   })
-  await loadNostrUser({ pubkey: me, refreshStyle: evt })
+  await loadUser({ pubkey: me, refreshStyle: evt })
   writeJSON("pendingName", null)
   emit()
   await anySuccess(pool.publish(profileRelays(), evt, { onauth }))
 }
 
-// Before the first thing a new key writes, give it a name and a relay list so
+// Before the first thing a new key writes, give it a name and a server list so
 // others can find out who it is.
 export async function ensureProfile() {
   const pending = pendingName()
@@ -210,7 +210,7 @@ export async function ensureProfile() {
 // ─── publishing ────────────────────────────────────────────────
 export const now = () => Math.floor(Date.now() / 1000)
 
-export async function sign(template: EventTemplate): Promise<NostrEvent> {
+export async function sign(template: EventTemplate): Promise<Event> {
   return signer.signEvent(template)
 }
 
@@ -218,12 +218,12 @@ export async function anySuccess(attempts: Promise<string>[]): Promise<void> {
   const results = await Promise.allSettled(attempts)
   if (results.some(r => r.status === "fulfilled")) return
   const reasons = results.map(r => (r.status === "rejected" ? String(r.reason?.message ?? r.reason) : ""))
-  throw new Error(reasons.filter(Boolean).join("; ") || "no relay accepted the event")
+  throw new Error(reasons.filter(Boolean).join("; ") || "no server accepted the event")
 }
 
-// Signs, publishes to the relay and only then keeps it locally: a group
-// relay that refuses the event is the authority on whether it exists.
-export async function publishToRelay(relay: string, template: EventTemplate): Promise<NostrEvent> {
+// Signs, publishes to the server and only then keeps it locally: a group
+// server that refuses the event is the authority on whether it exists.
+export async function publishToRelay(relay: string, template: EventTemplate): Promise<Event> {
   await ensureProfile()
   const evt = await signer.signEvent(template)
   authRelays.add(relay)

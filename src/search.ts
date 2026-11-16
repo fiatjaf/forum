@@ -1,5 +1,5 @@
 import { Index } from "flexsearch"
-import type { NostrEvent } from "@nostr/tools/core"
+import type { NostrEvent as Event } from "@nostr/tools/core"
 import { KIND_COMMENT, KIND_THREAD } from "./groups"
 import { onSaved, query } from "./store"
 
@@ -7,10 +7,10 @@ import { onSaved, query } from "./store"
 // new thread and comment the store takes in.
 let index: Index | null = null
 let building: Promise<Index> | null = null
-const docs: NostrEvent[] = []
+const docs: Event[] = []
 const known = new Set<string>()
 
-function add(idx: Index, evt: NostrEvent) {
+function add(idx: Index, evt: Event) {
   if (known.has(evt.id)) return
   known.add(evt.id)
   const n = docs.push(evt) - 1
@@ -35,7 +35,7 @@ onSaved(evt => {
 })
 
 // Best match first, only from the given group.
-export async function search(q: string, groupId: string): Promise<NostrEvent[]> {
+export async function search(q: string, groupId: string): Promise<Event[]> {
   const idx = await ensureIndex()
   const ids = idx.search(q, { limit: 1000 }) as number[]
   return ids.map(n => docs[n]).filter(evt => evt.tags.some(t => t[0] === "h" && t[1] === groupId))

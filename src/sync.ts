@@ -1,9 +1,9 @@
 import { pool } from "@nostr/gadgets/global"
-import type { NostrEvent } from "@nostr/tools/core"
+import type { NostrEvent as Event } from "@nostr/tools/core"
 import type { Filter } from "@nostr/tools/filter"
 import type { SubCloser } from "@nostr/tools/abstract-pool"
 import { CONTENT_KINDS, META_KINDS, type Group, allGroups, getGroup, loadMyGroups, normalizeRelay } from "./groups"
-import { onauth } from "./nostr"
+import { onauth } from "./account"
 import { query, save } from "./store"
 import { emit } from "./state"
 
@@ -22,11 +22,11 @@ function metaFilter(g: Group): Filter {
   return f
 }
 
-// One REQ until EOSE (or a timeout); answers undefined when the relay
+// One REQ until EOSE (or a timeout); answers undefined when the server
 // closed it on us, so the caller can tell "nothing more" from "failed".
-function fetchPage(relay: string, filter: Filter): Promise<NostrEvent[] | undefined> {
+function fetchPage(relay: string, filter: Filter): Promise<Event[] | undefined> {
   return new Promise(resolve => {
-    const events: NostrEvent[] = []
+    const events: Event[] = []
     let done = false
     const finish = (ok: boolean) => {
       if (done) return
@@ -66,7 +66,7 @@ function setCheckpoint(g: Group, ts: number | undefined) {
   } catch {}
 }
 
-// Brings the store up to date with the relay: everything from the newest
+// Brings the store up to date with the server: everything from the newest
 // event we have (less two hours, for late arrivals and clock skew) on, or
 // the whole history the first time (or when full is set, e.g. after joining
 // a private forum whose history we couldn't read before).
@@ -159,7 +159,7 @@ export function goLive(g: Group) {
   open()
 }
 
-// After joining, what the relay hid from us before is readable: subscribe
+// After joining, what the server hid from us before is readable: subscribe
 // again and fetch the whole history.
 export function rejoined(g: Group) {
   const sub = live.get(g)

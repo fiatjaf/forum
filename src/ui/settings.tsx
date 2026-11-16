@@ -1,7 +1,7 @@
 import * as nip19 from "@nostr/tools/nip19"
 import { For, createEffect, createSignal, untrack } from "solid-js"
 import { inMyGroups, removeFromMyGroups, type Group } from "../groups"
-import { me } from "../nostr"
+import { me } from "../account"
 import { useChanges } from "../state"
 import { UserLink, navigate } from "./common"
 import { ForumFields, type ForumForm } from "./create"
@@ -110,7 +110,7 @@ export function ForumSettings(props: { group: Group }) {
                     <button class="btn pri" type="submit" disabled={busy()}>
                       {busy() ? "saving…" : "save settings"}
                     </button>
-                    {saved() && <span class="where">saved; the relay updates the forum in a moment</span>}
+                    {saved() && <span class="where">saved; the server updates the forum in a moment</span>}
                   </div>
                 </form>
               </div>
@@ -144,7 +144,7 @@ function Members(props: { group: Group }) {
     <section id="members" class="card" aria-labelledby="members-heading">
       <div class="card-h">
         <h2 id="members-heading">members</h2>
-        <p>People the relay lets in, and who is an admin.</p>
+        <p>People the server lets in, and who is an admin.</p>
       </div>
       <div class="card-b">
         {members().length ? (
@@ -182,7 +182,7 @@ function Members(props: { group: Group }) {
             </For>
           </ul>
         ) : (
-          <p class="hint">The relay doesn't publish the member list.</p>
+          <p class="hint">The server doesn't publish the member list.</p>
         )}
         <form
           class="row-inline member-add"
@@ -280,7 +280,7 @@ function LeaveGroup(props: { group: Group }) {
       <div class="card-h">
         <h2 id="leave-heading">leave group</h2>
         <p>
-          This forum is a NIP-29 group. Leaving tells the relay you're no longer a member and takes it off your list.
+          This forum is a NIP-29 group. Leaving tells the server you're no longer a member and takes it off your list.
         </p>
       </div>
       <div class="card-b">
@@ -294,7 +294,7 @@ function LeaveGroup(props: { group: Group }) {
               try {
                 await g.leave()
               } catch {
-                // not a member on the relay; still take it off the list
+                // not a member on the server; still take it off the list
                 await removeFromMyGroups(g).catch(() => {})
               }
               navigate("/")

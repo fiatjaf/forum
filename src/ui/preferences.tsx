@@ -219,7 +219,7 @@ export function ProgrammaticAccess(props: { group?: Group }) {
     if (!g) return "<address>"
     return g.naddr ?? `${g.relay.replace(/^wss?:\/\//, "").replace(/\/$/, "")}/${g.id}`
   }
-  const relay = () => props.group?.relay ?? "<relay>"
+  const relay = () => props.group?.relay ?? "<server>"
   const groupId = () => props.group?.id ?? "<group-id>"
 
   const copy = () => {
@@ -238,11 +238,7 @@ export function ProgrammaticAccess(props: { group?: Group }) {
       <div class="card-h">
         <h2 id="programmatic-heading">programmatic access</h2>
         <p>
-          Each forum is a{" "}
-          <a class="underline" href="https://nips.nostr.com/29" target="_blank" rel="noopener">
-            NIP-29
-          </a>{" "}
-          group, so any NIP-29 client or script can read and post to it.{" "}
+          Each forum is an NIP-29 group, so any compatible client or script can read and post to it.{" "}
           <a class="underline" href="https://github.com/fiatjaf/nak" target="_blank" rel="noopener">
             nak
           </a>{" "}
@@ -254,8 +250,8 @@ export function ProgrammaticAccess(props: { group?: Group }) {
           when={props.group}
           fallback={
             <p class="help">
-              Open a forum's settings to copy its group id and relay. The examples below use{" "}
-              <code>&lt;group-id&gt;</code>, <code>&lt;relay&gt;</code>, <code>&lt;thread-id&gt;</code> and{" "}
+              Open a forum's settings to copy its group id and server. The examples below use{" "}
+              <code>&lt;group-id&gt;</code>, <code>&lt;server&gt;</code>, <code>&lt;thread-id&gt;</code> and{" "}
               <code>&lt;thread-author&gt;</code> as placeholders.
             </p>
           }

@@ -7,7 +7,7 @@ import { sha256 } from "@noble/hashes/sha2.js"
 import { bytesToHex } from "@noble/hashes/utils.js"
 import { pool } from "@nostr/gadgets/global"
 import { finalizeEvent, generateSecretKey, getPublicKey } from "@nostr/tools/pure"
-import { BIG_RELAYS, myWriteRelays } from "./nostr"
+import { BIG_RELAYS, myWriteRelays } from "./account"
 
 export const CENTRAL = "https://auth.njump.me"
 export const OPERATORS = [

@@ -1,5 +1,5 @@
 import { createSignal } from "solid-js"
-import { createAccount, setPomegranateLink, useBunker, useSecretKey } from "../nostr"
+import { createAccount, setPomegranateLink, useBunker, useSecretKey } from "../account"
 import { linkGoogle } from "../pomegranate"
 
 type Busy = "" | "name" | "key" | "google"
@@ -65,7 +65,7 @@ export function Login() {
         <a class="logo login-logo" href="/" aria-label="home">
           <span class="p">›</span>forums<span class="cur"></span>
         </a>
-        <pre class="getty">{`a nostr forum
+        <pre class="getty">{`a forum
 this browser has no key`}</pre>
 
         <div class="card auth-card" aria-label="Log in">

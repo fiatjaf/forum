@@ -9,7 +9,7 @@ export function Home() {
     return myGroups.map(item => getGroup({ id: item.groupId, relay: normalizeRelay(item.relay) }))
   })
 
-  // a 10009 entry doesn't say what the relay's key is, and links need it
+  // a 10009 entry doesn't say what the server's key is, and links need it
   createEffect(
     on(
       () => groups().length,

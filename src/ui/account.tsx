@@ -10,7 +10,7 @@ import {
   pomegranateLink,
   setPomegranateLink,
   setProfileName
-} from "../nostr"
+} from "../account"
 import { linkGoogle } from "../pomegranate"
 import { useChanges } from "../state"
 import { displayName, forgetUser, npub, plural } from "./common"

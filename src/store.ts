@@ -1,7 +1,7 @@
 import { setReplaceableStore } from "@nostr/gadgets/global"
 import { RedEventStore } from "@nostr/gadgets/redstore"
 import RedStoreWorker from "@nostr/gadgets/redstore/redstore-worker?worker"
-import type { NostrEvent } from "@nostr/tools/core"
+import type { NostrEvent as Event } from "@nostr/tools/core"
 import type { Filter } from "@nostr/tools/filter"
 import { isAddressableKind } from "@nostr/tools/kinds"
 
@@ -12,7 +12,7 @@ const store = new RedEventStore(new RedStoreWorker(), "@forum-redstore")
 // gadgets asks for kind 0 and 1xxxx with an empty d-tag, and redstore looks
 // that up in the d-tag index, which only holds 3xxxx events: drop the d-tag
 // for non-addressable kinds, and don't trust a lookup that answers with
-// another event (same workaround as nostrapps).
+// another event.
 const rawLoadReplaceables = store.loadReplaceables.bind(store)
 store.loadReplaceables = (async (specs: [number, string, string?][]) => {
   const found = await rawLoadReplaceables(
@@ -22,7 +22,7 @@ store.loadReplaceables = (async (specs: [number, string, string?][]) => {
   )
   return found.map(([lastAttempt, stored], i) => {
     const [kind, pubkey, d] = specs[i]
-    const fits = (e: NostrEvent | undefined) =>
+    const fits = (e: Event | undefined) =>
       !!e &&
       e.kind === kind &&
       e.pubkey === pubkey &&
@@ -33,7 +33,7 @@ store.loadReplaceables = (async (specs: [number, string, string?][]) => {
 
 setReplaceableStore(store)
 
-export function query(filter: Filter, maxLimit = 100_000): Promise<NostrEvent[]> {
+export function query(filter: Filter, maxLimit = 100_000): Promise<Event[]> {
   return store.queryEvents(filter, maxLimit).catch(err => {
     console.warn("[store] query failed", filter, err)
     return []
@@ -42,14 +42,14 @@ export function query(filter: Filter, maxLimit = 100_000): Promise<NostrEvent[]>
 
 // Everything that reaches the store through us is announced here, once, the
 // first time it is saved.
-const listeners = new Set<(event: NostrEvent) => void>()
+const listeners = new Set<(event: Event) => void>()
 
-export function onSaved(fn: (event: NostrEvent) => void): () => void {
+export function onSaved(fn: (event: Event) => void): () => void {
   listeners.add(fn)
   return () => listeners.delete(fn)
 }
 
-export async function save(event: NostrEvent): Promise<boolean> {
+export async function save(event: Event): Promise<boolean> {
   let isNew = false
   try {
     isNew = await store.saveEvent(event)
