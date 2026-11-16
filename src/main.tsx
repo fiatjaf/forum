@@ -165,7 +165,7 @@ function Header(props: { route: Accessor<Route> }) {
         <div class="wrap">
           <a class="logo" href={base() ?? "/"} aria-label="home">
             <span class="p">›</span>
-            {group()?.name ?? "forums"}
+            <span class="name">{group()?.name ?? "forums"}</span>
             <span class="cur"></span>
           </a>
           <nav class="nav" aria-label="Main">

@@ -350,7 +350,21 @@ main.wrap {
 	align-items: center;
 	gap: 18px;
 	min-height: 52px;
-	flex-wrap: wrap;
+	flex-wrap: nowrap;
+}
+
+.top .wrap > * {
+	flex-shrink: 0;
+}
+
+/* A long forum name gives way first, after the search box. */
+.top .wrap > .search {
+	flex-shrink: 100;
+}
+
+.top .wrap > .logo {
+	flex-shrink: 1;
+	min-width: 0;
 }
 
 .logo {
@@ -359,6 +373,14 @@ main.wrap {
 	gap: 6px;
 	color: var(--ink);
 	font: 600 16px var(--font-mono);
+}
+
+@media (min-width: 901px) {
+	.top .logo .name {
+		overflow: hidden;
+		text-overflow: ellipsis;
+		white-space: nowrap;
+	}
 }
 
 .logo .p {
@@ -403,6 +425,7 @@ main.wrap {
 	align-items: center;
 	gap: 6px;
 	width: 210px;
+	min-width: 110px;
 	height: 32px;
 	padding: 0 10px;
 	border: 1px solid var(--line);

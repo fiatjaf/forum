@@ -17,6 +17,17 @@ on any compatible open server, and invite people to it.
   time you open it. You can also log in with an existing key, a remote signer
   or Google.
 
+![The threads of a forum](screenshots/forum.png)
+
+![A thread with nested comments](screenshots/thread.png)
+
+<p>
+  <img src="screenshots/home.png" alt="The forums you're in" width="64%">
+  <img src="screenshots/mobile.png" alt="A thread on a phone, in dark mode" width="34%">
+</p>
+
+![A forum in dark mode](screenshots/forum-dark.png)
+
 ## Servers
 
 The forum lives on a server, not in this app. The app only talks to it. Any
