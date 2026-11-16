@@ -1,4 +1,4 @@
-import { For, Show, createMemo, createSignal } from "solid-js"
+import { For, Show, createMemo, createSignal, onMount } from "solid-js"
 import type { NostrEvent as Event } from "@nostr/tools/core"
 import { inMyGroups, addToMyGroups, type Group } from "../groups"
 import { me } from "../account"
@@ -51,6 +51,7 @@ export function Forum(props: { group: Group }) {
           <span class="p">~/</span>threads
         </h1>
         <span class="sp"></span>
+        <InviteButton group={g} />
         {live() && (
           <span class="live">
             <i></i>live
@@ -177,17 +178,41 @@ export function Membership(props: { group: Group }) {
     return g.metadata
   }
 
-  const run = async (fn: () => Promise<unknown>) => {
+  const join = async () => {
     setBusy(true)
     setMessage("")
     try {
-      await fn()
+      await g.join(invite)
+      rejoined(g)
+      // the code is spent: don't offer it again on reload
+      if (invite) history.replaceState(null, "", location.pathname)
     } catch (err) {
       setMessage(String((err as Error).message ?? err))
     } finally {
       setBusy(false)
     }
   }
+
+  const addToList = async () => {
+    setBusy(true)
+    setMessage("")
+    try {
+      await addToMyGroups(g)
+    } catch (err) {
+      setMessage(String((err as Error).message ?? err))
+    } finally {
+      setBusy(false)
+    }
+  }
+
+  // Opening an invite link (possibly right after logging in through it) is
+  // asking to join.
+  onMount(async () => {
+    if (!invite) return
+    await g.loaded
+    if (!g.isMember()) join()
+    else history.replaceState(null, "", location.pathname)
+  })
 
   return (
     <Show when={!member() || !listed()}>
@@ -197,7 +222,7 @@ export function Membership(props: { group: Group }) {
             <span class="notice-title">member</span>
             <span>You're a member, but this forum isn't in your list.</span>
             <span class="sp"></span>
-            <button class="btn" disabled={busy()} onClick={() => run(() => addToMyGroups(g))}>
+            <button class="btn" disabled={busy()} onClick={addToList}>
               add to my forums
             </button>
           </>
@@ -218,13 +243,13 @@ export function Membership(props: { group: Group }) {
               <button
                 class="btn pri"
                 disabled={busy()}
-                onClick={() => run(() => g.join(invite).then(() => rejoined(g)))}
+                onClick={join}
               >
                 {busy() ? "joining…" : "join"}
               </button>
             )}
             {!listed() && meta()?.isClosed && !invite && (
-              <button class="btn" disabled={busy()} onClick={() => run(() => addToMyGroups(g))}>
+              <button class="btn" disabled={busy()} onClick={addToList}>
                 add to my forums
               </button>
             )}
@@ -232,6 +257,53 @@ export function Membership(props: { group: Group }) {
         )}
         {message() && <span class="err">{message()}</span>}
       </div>
+    </Show>
+  )
+}
+
+// Open forums are shared by their own link; closed ones need an admin to make
+// an invite code, which the link carries.
+function InviteButton(props: { group: Group }) {
+  const g = props.group
+  const [state, setState] = createSignal<"" | "making" | "copied" | "error">("")
+  const [link, setLink] = createSignal("")
+  const canInvite = () => {
+    useChanges()
+    return g.metadata?.isClosed ? g.isAdmin() : g.isMember() || inMyGroups(g)
+  }
+
+  const invite = async () => {
+    setState("making")
+    try {
+      let url = `${location.origin}/${g.naddr}`
+      if (g.metadata?.isClosed) url += `?invite=${await g.createInvite()}`
+      setLink(url)
+      try {
+        await navigator.clipboard.writeText(url)
+        setState("copied")
+      } catch {
+        setState("")
+      }
+    } catch (err) {
+      setLink(String((err as Error).message ?? err))
+      setState("error")
+    }
+  }
+
+  return (
+    <Show when={canInvite()}>
+      <button class="btn" type="button" disabled={state() === "making"} onClick={invite}>
+        {state() === "making" ? "making invite…" : state() === "copied" ? "link copied" : "invite"}
+      </button>
+      {link() && (
+        <input
+          class={"inp mono invite-link" + (state() === "error" ? " err" : "")}
+          readOnly
+          value={link()}
+          aria-label="Invite link"
+          onFocus={e => (e.target as HTMLInputElement).select()}
+        />
+      )}
     </Show>
   )
 }

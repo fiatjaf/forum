@@ -3,42 +3,40 @@ import type { NostrEvent as Event } from "@nostr/tools/core"
 import { KIND_COMMENT, KIND_THREAD } from "./groups"
 import { onSaved, query } from "./store"
 
-// Built from the store the first time someone searches, then fed with every
+// Filled from the store the first time someone searches, then fed with every
 // new thread and comment the store takes in.
-let index: Index | null = null
-let building: Promise<Index> | null = null
+const index = new Index({ tokenize: "forward" })
 const docs: Event[] = []
 const known = new Set<string>()
 
-function add(idx: Index, evt: Event) {
+// Set on the first search; later searches wait for the same filling.
+let filling: Promise<void> | null = null
+
+function add(evt: Event) {
   if (known.has(evt.id)) return
   known.add(evt.id)
   const n = docs.push(evt) - 1
   const title = evt.tags.find(t => t[0] === "title")?.[1] ?? ""
-  idx.add(n, `${title}\n${evt.content}`)
+  index.add(n, `${title}\n${evt.content}`)
 }
 
-function ensureIndex(): Promise<Index> {
-  if (index) return Promise.resolve(index)
-  building ??= (async () => {
-    const idx = new Index({ tokenize: "forward" })
-    const events = await query({ kinds: [KIND_THREAD, KIND_COMMENT] })
-    for (const evt of events) add(idx, evt)
-    index = idx
-    return idx
-  })()
-  return building
+async function fillIndex() {
+  const events = await query({ kinds: [KIND_THREAD, KIND_COMMENT] })
+  for (const evt of events) add(evt)
 }
 
-// While the index is still being built, wait for it: the store query may
-// have missed what arrived in the meantime.
+// Before the first search there's nothing to keep up to date: the store query
+// will find this event then. After it, add it right away, even while the index
+// is still being filled (add skips what it already has).
 onSaved(evt => {
-  if (building && (evt.kind === KIND_THREAD || evt.kind === KIND_COMMENT)) building.then(idx => add(idx, evt))
+  if (!filling) return
+  if (evt.kind === KIND_THREAD || evt.kind === KIND_COMMENT) add(evt)
 })
 
 // Best match first, only from the given group.
 export async function search(q: string, groupId: string): Promise<Event[]> {
-  const idx = await ensureIndex()
-  const ids = idx.search(q, { limit: 1000 }) as number[]
+  if (!filling) filling = fillIndex()
+  await filling
+  const ids = index.search(q, { limit: 1000 }) as number[]
   return ids.map(n => docs[n]).filter(evt => evt.tags.some(t => t[0] === "h" && t[1] === groupId))
 }

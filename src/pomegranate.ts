@@ -56,25 +56,23 @@ export function googleLogin(central = CENTRAL): Promise<string> {
   const popup = window.open(`${central}/login/google`, "PomegranateOAuth", "width=600,height=600")
   if (!popup) return Promise.reject(new Error("the popup was blocked"))
 
+  // Ends when the popup sends us the token, or when it's closed without doing so.
   return new Promise<string>((resolve, reject) => {
-    let settled = false
-    const monitor = window.setInterval(() => {
-      if (!settled && popup.closed) finish(null, new Error("login cancelled"))
-    }, 250)
-    function finish(value: string | null, err?: Error) {
-      if (settled) return
-      settled = true
-      window.clearInterval(monitor)
-      window.removeEventListener("message", handler)
-      if (err) reject(err)
-      else resolve(value!)
-    }
-    function handler(event: MessageEvent) {
+    function onMessage(event: MessageEvent) {
       if (event.origin !== central || event.source !== popup || !event.data?.token) return
+      window.clearInterval(checkClosed)
+      window.removeEventListener("message", onMessage)
       popup!.close()
-      finish(event.data.token as string)
+      resolve(event.data.token as string)
     }
-    window.addEventListener("message", handler)
+    window.addEventListener("message", onMessage)
+
+    const checkClosed = window.setInterval(() => {
+      if (!popup!.closed) return
+      window.clearInterval(checkClosed)
+      window.removeEventListener("message", onMessage)
+      reject(new Error("login cancelled"))
+    }, 250)
   })
 }
 
@@ -121,18 +119,16 @@ async function register(
     },
     secretKey
   )
-  await assertOk(
-    await fetch(`${central}/register`, {
-      method: "POST",
-      headers: {
-        "Content-Type": "application/json",
-        Authorization: "Token " + token,
-        "X-Pomegranate-Session": session
-      },
-      body: JSON.stringify(reg)
-    }),
-    "central /register"
-  )
+  const regResp = await fetch(`${central}/register`, {
+    method: "POST",
+    headers: {
+      "Content-Type": "application/json",
+      Authorization: "Token " + token,
+      "X-Pomegranate-Session": session
+    },
+    body: JSON.stringify(reg)
+  })
+  await assertOk(regResp, "central /register")
 
   for (let i = 0; i < operators.length; i++) {
     const op = operators[i]
@@ -149,17 +145,15 @@ async function register(
       },
       secretKey
     )
-    await assertOk(
-      await fetch(`${op}/po/register`, {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-          "X-Pomegranate-Operator-Token": bytesToHex(sha256(utf8.encode(session + ":" + op)))
-        },
-        body: JSON.stringify(evt)
-      }),
-      `${op} /register`
-    )
+    const opResp = await fetch(`${op}/po/register`, {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        "X-Pomegranate-Operator-Token": bytesToHex(sha256(utf8.encode(session + ":" + op)))
+      },
+      body: JSON.stringify(evt)
+    })
+    await assertOk(opResp, `${op} /register`)
   }
 
   log("announcing the setup…")
@@ -178,24 +172,24 @@ async function register(
   await Promise.allSettled(pool.publish([...BIG_RELAYS, ...(await myWriteRelays())], announcement))
 }
 
+async function findDefaultProfile(central: string, token: string): Promise<any> {
+  const resp = await fetch(`${central}/profiles`, { headers: { Authorization: "Token " + token } })
+  await assertOk(resp, "central /profiles")
+  const profiles = await resp.json()
+  if (!Array.isArray(profiles)) return undefined
+  return profiles.find(p => p?.name === "default")
+}
+
 export async function defaultBunker(central: string, token: string): Promise<string> {
-  const list = async (): Promise<any[]> => {
-    const resp = await fetch(`${central}/profiles`, { headers: { Authorization: "Token " + token } })
-    await assertOk(resp, "central /profiles")
-    const profiles = await resp.json()
-    return Array.isArray(profiles) ? profiles : []
-  }
-  let profile = (await list()).find(p => p?.name === "default")
+  let profile = await findDefaultProfile(central, token)
   if (!profile) {
-    await assertOk(
-      await fetch(`${central}/profiles`, {
-        method: "POST",
-        headers: { "Content-Type": "application/json", Authorization: "Token " + token },
-        body: JSON.stringify({ name: "default" })
-      }),
-      "profile creation"
-    )
-    profile = (await list()).find(p => p?.name === "default")
+    const resp = await fetch(`${central}/profiles`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json", Authorization: "Token " + token },
+      body: JSON.stringify({ name: "default" })
+    })
+    await assertOk(resp, "profile creation")
+    profile = await findDefaultProfile(central, token)
   }
   if (!profile?.handler_pubkey) throw new Error("central did not return a default signing profile")
   return `bunker://${profile.handler_pubkey}?relay=${encodeURIComponent(central.replace(/^http/, "ws"))}`

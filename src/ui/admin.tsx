@@ -140,10 +140,50 @@ function Members(props: { group: Group }) {
     return [...new Set([...g.admins.keys(), ...(g.members ?? [])])]
   }
 
-  const run = async (fn: () => Promise<unknown>) => {
+  const makeAdmin = async (pk: string) => {
     setError("")
     try {
-      await fn()
+      await g.putUser(pk, ["admin"])
+    } catch (err) {
+      setError(errorText(err))
+    }
+  }
+
+  // putting someone again without roles takes the ones they had away
+  const removeAdmin = async (pk: string) => {
+    setError("")
+    try {
+      await g.putUser(pk)
+    } catch (err) {
+      setError(errorText(err))
+    }
+  }
+
+  const removeMember = async (pk: string) => {
+    if (!confirm("Remove this member? They can't post until they join again.")) return
+    setError("")
+    try {
+      await g.removeUser(pk)
+    } catch (err) {
+      setError(errorText(err))
+    }
+  }
+
+  const addMember = async (e: SubmitEvent) => {
+    e.preventDefault()
+    setError("")
+    try {
+      const v = input()
+        .trim()
+        .replace(/^nostr:/, "")
+      let pk = v
+      if (v.startsWith("npub1") || v.startsWith("nprofile1")) {
+        const d = nip19.decode(v)
+        pk = d.type === "npub" ? d.data : d.type === "nprofile" ? d.data.pubkey : ""
+      }
+      if (!/^[0-9a-f]{64}$/.test(pk)) throw new Error("Paste an npub.")
+      await g.putUser(pk)
+      setInput("")
     } catch (err) {
       setError(errorText(err))
     }
@@ -172,26 +212,15 @@ function Members(props: { group: Group }) {
                     <span class="sp"></span>
                     {pk !== me &&
                       (roles() ? (
-                        <button class="inline-button" type="button" onClick={() => run(() => g.putUser(pk))}>
+                        <button class="inline-button" type="button" onClick={() => removeAdmin(pk)}>
                           remove admin
                         </button>
                       ) : (
                         <>
-                          <button
-                            class="inline-button"
-                            type="button"
-                            onClick={() => run(() => g.putUser(pk, ["admin"]))}
-                          >
+                          <button class="inline-button" type="button" onClick={() => makeAdmin(pk)}>
                             make admin
                           </button>
-                          <button
-                            class="inline-button"
-                            type="button"
-                            onClick={() => {
-                              if (!confirm("Remove this member? They can't post until they join again.")) return
-                              run(() => g.removeUser(pk))
-                            }}
-                          >
+                          <button class="inline-button" type="button" onClick={() => removeMember(pk)}>
                             remove
                           </button>
                         </>
@@ -204,25 +233,7 @@ function Members(props: { group: Group }) {
         ) : (
           <p class="hint">The server doesn't share the member list.</p>
         )}
-        <form
-          class="row-inline member-add"
-          onSubmit={e => {
-            e.preventDefault()
-            run(async () => {
-              const v = input()
-                .trim()
-                .replace(/^nostr:/, "")
-              let pk = v
-              if (v.startsWith("npub1") || v.startsWith("nprofile1")) {
-                const d = nip19.decode(v)
-                pk = d.type === "npub" ? d.data : d.type === "nprofile" ? d.data.pubkey : ""
-              }
-              if (!/^[0-9a-f]{64}$/.test(pk)) throw new Error("Paste an npub.")
-              await g.putUser(pk)
-              setInput("")
-            })
-          }}
-        >
+        <form class="row-inline member-add" onSubmit={addMember}>
           <input
             class="inp mono wide"
             placeholder="npub1…"

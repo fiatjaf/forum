@@ -66,15 +66,17 @@ function setCheckpoint(g: Group, ts: number | undefined) {
   } catch {}
 }
 
+// Groups that were asked for a full sync while another sync of theirs was
+// running: the full one starts as soon as that one ends.
+const fullSyncAfterThis = new Set<Group>()
+
 // Brings the store up to date with the server: everything from the newest
 // event we have (less two hours, for late arrivals and clock skew) on, or
 // the whole history the first time (or when full is set, e.g. after joining
 // a private forum whose history we couldn't read before).
-const fullSyncQueued = new Set<Group>()
-
 export async function syncGroup(g: Group, full = false) {
   if (g.syncing) {
-    if (full) fullSyncQueued.add(g)
+    if (full) fullSyncAfterThis.add(g)
     return
   }
   g.syncing = true
@@ -121,7 +123,11 @@ export async function syncGroup(g: Group, full = false) {
   } finally {
     g.syncing = false
     emit()
-    if (fullSyncQueued.delete(g)) syncGroup(g, true)
+  }
+
+  if (fullSyncAfterThis.has(g)) {
+    fullSyncAfterThis.delete(g)
+    syncGroup(g, true)
   }
 }
 
@@ -131,32 +137,29 @@ const live = new Map<Group, SubCloser>()
 
 export function goLive(g: Group) {
   if (live.has(g)) return
-  const open = () => {
-    const sub = pool.subscribeMap(
-      [
-        { url: g.relay, filter: { ...contentFilter(g), since: Math.floor(Date.now() / 1000) - 60 } },
-        { url: g.relay, filter: metaFilter(g) }
-      ],
-      {
-        label: "forum-live",
-        onauth,
-        onevent: evt => {
-          save(evt)
-        },
-        onclose: () => {
-          if (live.get(g) !== sub) return
-          live.delete(g)
-          // reconnect later and catch up on what we missed meanwhile
-          setTimeout(() => {
-            syncGroup(g)
-            goLive(g)
-          }, 15_000)
-        }
+  const sub = pool.subscribeMap(
+    [
+      { url: g.relay, filter: { ...contentFilter(g), since: Math.floor(Date.now() / 1000) - 60 } },
+      { url: g.relay, filter: metaFilter(g) }
+    ],
+    {
+      label: "forum-live",
+      onauth,
+      onevent: evt => {
+        save(evt)
+      },
+      onclose: () => {
+        if (live.get(g) !== sub) return
+        live.delete(g)
+        // reconnect later and catch up on what we missed meanwhile
+        setTimeout(() => {
+          syncGroup(g)
+          goLive(g)
+        }, 15_000)
       }
-    )
-    live.set(g, sub)
-  }
-  open()
+    }
+  )
+  live.set(g, sub)
 }
 
 // After joining, what the server hid from us before is readable: subscribe

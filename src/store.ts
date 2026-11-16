@@ -15,21 +15,35 @@ const store = new RedEventStore(new RedStoreWorker(), "@forum-redstore")
 // another event.
 const rawLoadReplaceables = store.loadReplaceables.bind(store)
 store.loadReplaceables = (async (specs: [number, string, string?][]) => {
-  const found = await rawLoadReplaceables(
-    specs.map(([kind, pubkey, d]): [number, string, string?] =>
-      isAddressableKind(kind) ? [kind, pubkey, d] : [kind, pubkey]
-    )
-  )
-  return found.map(([lastAttempt, stored], i) => {
+  const lookups: [number, string, string?][] = []
+  for (const [kind, pubkey, d] of specs) {
+    if (isAddressableKind(kind)) lookups.push([kind, pubkey, d])
+    else lookups.push([kind, pubkey])
+  }
+
+  const found = await rawLoadReplaceables(lookups)
+
+  const results: typeof found = []
+  for (let i = 0; i < specs.length; i++) {
     const [kind, pubkey, d] = specs[i]
-    const fits = (e: Event | undefined) =>
-      !!e &&
-      e.kind === kind &&
-      e.pubkey === pubkey &&
-      (!isAddressableKind(kind) || d === undefined || (e.tags.find(t => t[0] === "d")?.[1] ?? "") === d)
-    return Array.isArray(stored) ? [lastAttempt, stored.filter(fits)] : [lastAttempt, fits(stored) ? stored : undefined]
-  })
+    const [lastAttempt, stored] = found[i]
+    if (Array.isArray(stored)) {
+      results.push([lastAttempt, stored.filter(e => isWhatWasAsked(e, kind, pubkey, d))])
+    } else if (isWhatWasAsked(stored, kind, pubkey, d)) {
+      results.push([lastAttempt, stored])
+    } else {
+      results.push([lastAttempt, undefined])
+    }
+  }
+  return results
 }) as any
+
+function isWhatWasAsked(e: Event | undefined, kind: number, pubkey: string, d: string | undefined): boolean {
+  if (!e || e.kind !== kind || e.pubkey !== pubkey) return false
+  if (!isAddressableKind(kind) || d === undefined) return true
+  const eventD = e.tags.find(t => t[0] === "d")?.[1] ?? ""
+  return eventD === d
+}
 
 setReplaceableStore(store)
 

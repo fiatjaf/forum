@@ -212,3 +212,8 @@
 	text-overflow: ellipsis;
 	white-space: nowrap;
 }
+
+.pagehead .invite-link {
+	order: 10;
+	flex-basis: 100%;
+}
