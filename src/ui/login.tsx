@@ -91,7 +91,7 @@ this browser has no key`}</pre>
                 />
               </div>
               <button class="btn" type="submit" disabled={!!busy()}>
-                {busy() === "name" ? "creating…" : "create a key and log in"}
+                {busy() === "name" ? "creating…" : "ok"}
               </button>
               <p class="auth-note">A new key is made in this browser. You can copy it from the account page later.</p>
             </form>

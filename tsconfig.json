@@ -9,7 +9,18 @@
     "strict": true,
     "noEmit": true,
     "skipLibCheck": true,
-    "types": ["vite/client"]
+    "allowImportingTsExtensions": true,
+    "types": ["vite/client"],
+    // JSR packages ship Deno sources, which import their dependencies as
+    // `npm:foo@1.2.3`. Vite rewrites those in vite.config.ts; TypeScript needs
+    // the same mapping to type-check the package's components.
+    "paths": {
+      "npm:solid-js@^1.9.19": ["./node_modules/solid-js/types/index.d.ts"],
+      "npm:solid-js@^1.9.19/jsx-runtime": ["./node_modules/solid-js/jsx-runtime.d.ts"],
+      "npm:solid-js@^1.9.19/*": ["./node_modules/solid-js/*"],
+      "npm:@djot/djot@^0.3.2": ["./node_modules/@djot/djot"],
+      "npm:@djot/djot@^0.3.2/*": ["./node_modules/@djot/djot/*"]
+    }
   },
   "include": ["src"]
 }

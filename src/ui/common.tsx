@@ -2,8 +2,7 @@ import { loadNostrUser, type NostrUser, bareNostrUser } from "@nostr/gadgets/met
 import type { NostrEvent } from "@nostr/tools/core"
 import * as nip19 from "@nostr/tools/nip19"
 import { type Block, parse } from "@nostr/tools/nip27"
-import DOMPurify from "dompurify"
-import * as djot from "@djot/djot"
+import { Djot as DjotDoc } from "@fiatjaf/solid-djot"
 import { type JSX, createEffect, createMemo, createSignal, on, onCleanup, onMount } from "solid-js"
 import { me, pendingName, PROFILE_RELAYS } from "../nostr"
 import type { Group } from "../groups"
@@ -234,16 +233,14 @@ function renderMentions(text: string): string {
   })
 }
 
-// Thread bodies are djot.
+// Thread bodies are djot. Every AST node becomes a Solid component, so a
+// document can never inject HTML of its own.
 export function Djot(props: { text: string; class?: string }) {
-  const html = () => {
-    try {
-      return DOMPurify.sanitize(djot.renderHTML(djot.parse(renderMentions(props.text))))
-    } catch {
-      return DOMPurify.sanitize(props.text.replace(/[&<>]/g, c => `&#${c.charCodeAt(0)};`).replace(/\n/g, "<br>"))
-    }
-  }
-  return <div class={props.class} innerHTML={html()} />
+  return (
+    <div class={props.class}>
+      <DjotDoc>{renderMentions(props.text)}</DjotDoc>
+    </div>
+  )
 }
 
 // ─── editor ────────────────────────────────────────────────────
